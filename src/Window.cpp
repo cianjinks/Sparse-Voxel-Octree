@@ -1,9 +1,5 @@
 #include "Window.hpp"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include "backends/imgui_impl_opengl3.cpp"
 #include "backends/imgui_impl_glfw.cpp"
@@ -16,10 +12,12 @@
 #include <time.h>
 
 Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight, const char *title)
-    : _width(width), _height(height), _title(title), _vwidth(vwidth), _vheight(vheight)
+    : _width(width), _height(height), _title(title), _vwidth(vwidth), _vheight(vheight), _vwidthf(float(vwidth)), _vheightf(float(vheight))
 {
+    _ratio = float(width) / float(height);
+    _vratio = float(vwidth) / float(vheight);
     _pixels = _vwidth * _vheight;
-    buffer = new uint8_t[3 * _pixels];
+    buffer = new Pixel[_pixels];
 }
 
 Window::~Window()
@@ -57,10 +55,10 @@ void Window::setup()
 
     float vertices[] = {
         // Pos // Texture Coord
-        -2.0f, 2.0f, 0.0f, 0.0f, 1.0f,  // Top Left
-        -2.0f, -2.0f, 0.0f, 0.0f, 0.0f, // Bottom Left
-        2.0f, -2.0f, 0.0f, 1.0f, 0.0f,  // Bottom Right
-        2.0f, 2.0f, 0.0f, 1.0f, 1.0f,   // Top Right
+        0.0f, _vheightf, 0.0f, 0.0f, 1.0f,     // Top Left
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f,          // Bottom Left
+        _vwidthf, 0.0f, 0.0f, 1.0f, 0.0f,      // Bottom Right
+        _vwidthf, _vheightf, 0.0f, 1.0f, 1.0f, // Top Right
     };
 
     unsigned int indices[] = {
@@ -93,15 +91,49 @@ void Window::setup()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    uint8_t r = 0;
-    for (int i = 0; i < (3 * _pixels); i += 3)
+    // CPU Raytracing Tests
+    glm::mat4 cpu = glm::mat4(1.0f);
+    glm::vec3 center = glm::vec3(_vratio / 2, 0.5f, 1.25f);
+    glm::vec3 p0 = center - glm::vec3(0.25f);
+    glm::vec3 p1 = center + glm::vec3(0.25f);
+
+    float rx, ry;
+    glm::vec4 pos;
+    glm::vec3 invRaydir;
+    glm::vec3 rayOrigin;
+
+    uint64_t index = 0;
+    for (int y = 0; y < _vheight; y++)
     {
-        r = rand();
-        buffer[i] = r;
-        buffer[i + 1] = r;
-        buffer[i + 2] = r;
+        for (int x = 0; x < _vwidth; x++)
+        {
+            index = x + (y * _vwidth);
+
+            rx = (float(x) / _vwidthf) * _vratio;
+            ry = (float(y) / _vheightf);
+
+            pos = cpu * glm::vec4(rx, ry, 0.0f, 1.0f);
+            invRaydir = 1.0f / glm::vec3(0.0f, 0.0f, 1.0f);
+            rayOrigin = glm::vec3(pos);
+
+            // printf("Ray Position %d: %.3f, %.3f, %.3f\n", index, pos.x, pos.y, pos.z);
+
+            if (slabs(p0, p1, rayOrigin, invRaydir))
+            {
+                buffer[index].r = 255;
+                buffer[index].g = 0;
+                buffer[index].b = 0;
+            }
+            else
+            {
+                buffer[index].r = 0;
+                buffer[index].g = 255;
+                buffer[index].b = 255;
+            }
+        }
     }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
 
     GLuint programID;
     programID = glCreateProgram();
@@ -140,7 +172,7 @@ void Window::setup()
     glValidateProgram(programID);
     glUseProgram(programID);
 
-    glm::mat4 ortho = glm::ortho(-2.0f, 2.0f, -2.0f, 2.0f, -1.0f, 1.0f);
+    glm::mat4 ortho = glm::ortho(0.0f, _vwidthf, 0.0f, _vheightf, -1.0f, 1.0f);
 
     GLint loc = glGetUniformLocation(programID, "u_ProjectionMatrix");
     glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(ortho));
@@ -195,4 +227,13 @@ void Window::exit()
     glfwTerminate();
 
     delete buffer;
+}
+
+bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &invRd)
+{
+    glm::vec3 t0 = (p0 - ro) * invRd;
+    glm::vec3 t1 = (p1 - ro) * invRd;
+    glm::vec3 tmin = glm::min(t0, t1);
+    glm::vec3 tmax = glm::max(t0, t1);
+    return std::max(std::max(tmin.x, tmin.y), tmin.z) <= std::min(std::min(tmax.x, tmax.y), tmax.z);
 }

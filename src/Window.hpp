@@ -1,8 +1,17 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #ifndef _WINDOW_H
 #define _WINDOW_H
+
+struct Pixel
+{
+    uint8_t r, g, b;
+};
 
 class Window
 {
@@ -15,13 +24,17 @@ public:
     void exit();
 
 public:
-    uint8_t *buffer;
+    Pixel *buffer;
 
 private:
     void drawUI();
+    // TEMP
+    bool slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &invRd);
 
 private:
     uint32_t _width, _height, _vwidth, _vheight;
+    float _vwidthf, _vheightf;
+    float _ratio, _vratio;
     uint32_t _pixels;
     const char *_title;
     uint32_t _time;
