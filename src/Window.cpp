@@ -48,8 +48,12 @@ void Window::setup()
         assert(false);
     }
 
+    glfwSetWindowUserPointer(_window, this);
     glfwSetFramebufferSizeCallback(_window, [](GLFWwindow *window, int width, int height)
-                                   { glViewport(0, 0, width, height); });
+                                   {
+                                       Window *w = (Window *)glfwGetWindowUserPointer(window);
+                                       w->resize((uint32_t)width, (uint32_t)height);
+                                   });
 
     glEnable(GL_DEBUG_OUTPUT);
 
@@ -92,15 +96,28 @@ void Window::setup()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // CPU Raytracing Tests
+    printf("Tracing...");
+    // glm::vec3 center = glm::vec3(_vratio / 2, 0.5f, 1.25f);
+    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 p0 = center - glm::vec3(0.5f);
+    glm::vec3 p1 = center + glm::vec3(0.5f);
+
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 2.0f);
+    cameraPos.y = -2.0f * sin(glm::radians(-15.0f)); // Tilt down
+
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, -1.0f);
+
+    glm::mat4 viewMatrix = glm::lookAt(cameraPos, center, cameraUp);
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), _vratio, -1.0f, 1.0f);
+    // glm::mat4 cpu = projectionMatrix * viewMatrix;
     glm::mat4 cpu = glm::mat4(1.0f);
-    glm::vec3 center = glm::vec3(_vratio / 2, 0.5f, 1.25f);
-    glm::vec3 p0 = center - glm::vec3(0.25f);
-    glm::vec3 p1 = center + glm::vec3(0.25f);
 
     float rx, ry;
-    glm::vec4 pos;
-    glm::vec3 invRaydir;
+    glm::vec3 pos;
     glm::vec3 rayOrigin;
+    glm::vec3 rayDirection;
+    glm::vec3 invRaydir;
 
     uint64_t index = 0;
     for (int y = 0; y < _vheight; y++)
@@ -108,15 +125,17 @@ void Window::setup()
         for (int x = 0; x < _vwidth; x++)
         {
             index = x + (y * _vwidth);
+            rx = (((float(x) * 2.0f) / _vwidthf) - 1.0f) * _vratio;
+            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
+            // rx = (float(x) / _vwidthf);
+            // ry = (float(y) / _vheightf);
+            pos = glm::vec3(rx, ry, 0.0f);
 
-            rx = (float(x) / _vwidthf) * _vratio;
-            ry = (float(y) / _vheightf);
-
-            pos = cpu * glm::vec4(rx, ry, 0.0f, 1.0f);
-            invRaydir = 1.0f / glm::vec3(0.0f, 0.0f, 1.0f);
-            rayOrigin = glm::vec3(pos);
-
-            // printf("Ray Position %d: %.3f, %.3f, %.3f\n", index, pos.x, pos.y, pos.z);
+            // Ray
+            rayOrigin = glm::vec3(glm::vec4(cameraPos, 1.0f) * cpu);
+            rayDirection = cameraDir + pos;
+            rayDirection = glm::normalize(glm::vec3(glm::vec4(rayDirection, 1.0f) * cpu));
+            invRaydir = 1.0f / rayDirection;
 
             if (slabs(p0, p1, rayOrigin, invRaydir))
             {
@@ -134,6 +153,7 @@ void Window::setup()
     }
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+    printf("DONE!\n");
 
     GLuint programID;
     programID = glCreateProgram();
@@ -227,6 +247,14 @@ void Window::exit()
     glfwTerminate();
 
     delete buffer;
+}
+
+void Window::resize(uint32_t width, uint32_t height)
+{
+    glViewport(0, 0, width, height);
+    _width = width;
+    _height = height;
+    _ratio = float(width) / float(height);
 }
 
 bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &invRd)

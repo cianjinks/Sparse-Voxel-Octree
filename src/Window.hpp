@@ -22,6 +22,7 @@ public:
     void setup();
     void draw();
     void exit();
+    void resize(uint32_t width, uint32_t height);
 
 public:
     Pixel *buffer;
