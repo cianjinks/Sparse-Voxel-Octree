@@ -34,6 +34,9 @@ bool Octree::raymarch(glm::vec3 &ro,
     };
     StackEntry rayStack[s_max + 1];
 
+    glm::vec3 rayOrigin = ro;
+    glm::vec3 rayDirection = rd;
+
     if (std::fabs(rd.x) < 1e-4f)
         rd.x = 1e-4f;
     if (std::fabs(rd.y) < 1e-4f)
