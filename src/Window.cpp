@@ -11,6 +11,11 @@
 #include <vector>
 #include <time.h>
 
+static const Pixel colors[] = {Pixel{0, 0, 0}, Pixel{30, 30, 30},
+                               Pixel{60, 60, 60}, Pixel{90, 90, 90},
+                               Pixel{120, 120, 120}, Pixel{150, 150, 150},
+                               Pixel{180, 180, 180}, Pixel{210, 210, 210}};
+
 Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight, const char *title)
     : _width(width), _height(height), _title(title), _vwidth(vwidth), _vheight(vheight), _vwidthf(float(vwidth)), _vheightf(float(vheight))
 {
@@ -200,6 +205,95 @@ void Window::resize(uint32_t width, uint32_t height)
 }
 
 #if 1
+void Window::drawOctree(Octree &octree)
+{
+    double time = glfwGetTime();
+
+    // glm::vec3 center = glm::vec3(1.5f, 1.5f, 0.0f);
+    // glm::vec3 p0 = center + glm::vec3(0.25f, 0.25f, 0.25f);
+    // glm::vec3 p1 = center - glm::vec3(0.25f, 0.25f, 0.25f);
+
+    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, -1.0f);
+    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
+    glm::vec3 offset = glm::vec3(0.5f, 0.5f, 0.0f);
+
+    // glm::mat4 proj = glm::perspective(45.0f, _vratio, 0.1f, 100.0f);
+    // glm::mat4 view = glm::lookAt(cameraPos, glm::vec3(1.5f, 1.5f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    // glm::mat4 cpu = glm::inverse(proj * view);
+
+    float rx, ry;
+    glm::vec3 pos;
+    glm::vec3 rayOrigin;
+    glm::vec3 rayDirection;
+
+    glm::vec3 normal;
+    int idx = 0;
+
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::rotate(trans, (float)time, glm::vec3(1.5f, 1.5f, 1.0f));
+
+    uint64_t index = 0;
+    for (int y = 0; y < _vheight; y++)
+    {
+        for (int x = 0; x < _vwidth; x++)
+        {
+            rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
+            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
+            pos = glm::vec3(rx, ry, 0.0f);
+
+            // pos.x = pos.x * cos(time) - pos.z * sin(time);
+            // pos.z = pos.z * cos(time) + pos.x * sin(time);
+
+            // Ray
+            // Orthographic:
+            // rayOrigin = cameraPos + pos;
+            // rayDirection = cameraDir;
+
+            // Perspective:
+            rayOrigin = cameraPos;
+            rayDirection = glm::normalize(cameraDir + pos);
+
+            // rayOrigin.x = rayOrigin.x * cos(time) - rayOrigin.z * sin(time);
+            // rayOrigin.z = rayOrigin.z * cos(time) + rayOrigin.x * sin(time);
+            // rayDirection.x = rayDirection.x * cos(time) - rayDirection.z * sin(time);
+            // rayDirection.z = rayDirection.z * cos(time) + rayDirection.x * sin(time);
+            rayOrigin = glm::vec3(trans * glm::vec4(rayOrigin, 1.0f));
+            rayDirection = glm::vec3(trans * glm::vec4(rayDirection, 1.0f));
+
+            index = x + (y * _vwidth);
+            if (octree.raymarch(rayOrigin, rayDirection, normal, idx))
+            {
+                // buffer[index].r = 255;
+                // buffer[index].g = 0;
+                // buffer[index].b = 0;
+                buffer[index] = colors[idx];
+            }
+            else
+            {
+                buffer[index].r = 0;
+                buffer[index].g = 255;
+                buffer[index].b = 255;
+            }
+            // if (slabs(p0, p1, rayOrigin, rayDirection, normal))
+            // {
+            //     buffer[index].r = 255;
+            //     buffer[index].g = 0;
+            //     buffer[index].b = 0;
+            // }
+            // else
+            // {
+            //     buffer[index].r = 0;
+            //     buffer[index].g = 255;
+            //     buffer[index].b = 255;
+            // }
+        }
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+}
+#endif
+
+#if 0
 void Window::drawOctree(Octree &octree)
 {
 

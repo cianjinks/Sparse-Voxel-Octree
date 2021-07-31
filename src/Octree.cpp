@@ -24,7 +24,9 @@ Octree::Octree()
 }
 
 bool Octree::raymarch(glm::vec3 &ro,
-                      glm::vec3 &rd)
+                      glm::vec3 &rd,
+                      glm::vec3 &r_normal,
+                      int &r_idx)
 {
     const int s_max = 23; // Maximum scale (number of float mantissa bits).
     struct StackEntry
@@ -85,7 +87,10 @@ bool Octree::raymarch(glm::vec3 &ro,
     {
         if (current == 0)
         {
-            current = _tree[parent];
+            if (parent == 0)
+            {
+                current = _tree[parent];
+            }
         }
 
         float cornerTX = posX * dTx - bTx;
@@ -100,6 +105,7 @@ bool Octree::raymarch(glm::vec3 &ro,
         {
             if (maxTC >= scaleExp2)
             {
+                r_idx = idx;
                 return true;
             }
 
@@ -112,8 +118,8 @@ bool Octree::raymarch(glm::vec3 &ro,
             if (minT <= maxTV)
             {
                 uint64_t childOffset = current >> 16; // pointer for this parents child descriptors
-                // if (current & 0x20000)
-                //     childOffset = (childOffset << 32) | uint64_t(_tree[parent + 1]);
+                if (current & 0x20000)
+                    childOffset = (childOffset << 32) | uint64_t(_tree[parent + 1]);
 
                 if (!(childMasks & 0x80))
                 {
@@ -189,5 +195,30 @@ bool Octree::raymarch(glm::vec3 &ro,
         return false;
     }
 
+    // Normals
+    glm::vec3 pos = glm::vec3(posX, posY, posZ);
+    glm::vec3 t_coef = glm::vec3(dTx, dTy, dTz);
+    glm::vec3 t_bias = glm::vec3(bTx, bTy, bTz);
+    glm::vec3 t_corner = t_coef * (pos + scaleExp2) - t_bias;
+    if (t_corner.x > t_corner.y && t_corner.x > t_corner.z)
+    {
+        r_normal = glm::vec3(-1, 0, 0);
+    }
+    else if (t_corner.y > t_corner.z)
+    {
+        r_normal = glm::vec3(0, -1, 0);
+    }
+    else
+    {
+        r_normal = glm::vec3(0, 0, -1);
+    }
+    if ((octantMask & 1u) == 0u)
+        r_normal.x = -r_normal.x;
+    if ((octantMask & 2u) == 0u)
+        r_normal.y = -r_normal.y;
+    if ((octantMask & 4u) == 0u)
+        r_normal.z = -r_normal.z;
+
+    r_idx = idx;
     return true;
 }
