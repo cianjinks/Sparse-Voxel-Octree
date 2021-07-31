@@ -95,66 +95,6 @@ void Window::setup()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    // CPU Raytracing Tests
-    printf("Tracing...");
-    // glm::vec3 center = glm::vec3(_vratio / 2, 0.5f, 1.25f);
-    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 p0 = center - glm::vec3(0.5f);
-    glm::vec3 p1 = center + glm::vec3(0.5f);
-
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 2.0f);
-    cameraPos.y = -2.0f * sin(glm::radians(-15.0f)); // Tilt down
-
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, -1.0f);
-
-    glm::mat4 viewMatrix = glm::lookAt(cameraPos, center, cameraUp);
-    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), _vratio, -1.0f, 1.0f);
-    // glm::mat4 cpu = projectionMatrix * viewMatrix;
-    glm::mat4 cpu = glm::mat4(1.0f);
-
-    float rx, ry;
-    glm::vec3 pos;
-    glm::vec3 rayOrigin;
-    glm::vec3 rayDirection;
-    glm::vec3 invRaydir;
-
-    uint64_t index = 0;
-    for (int y = 0; y < _vheight; y++)
-    {
-        for (int x = 0; x < _vwidth; x++)
-        {
-            index = x + (y * _vwidth);
-            rx = (((float(x) * 2.0f) / _vwidthf) - 1.0f) * _vratio;
-            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
-            // rx = (float(x) / _vwidthf);
-            // ry = (float(y) / _vheightf);
-            pos = glm::vec3(rx, ry, 0.0f);
-
-            // Ray
-            rayOrigin = glm::vec3(glm::vec4(cameraPos, 1.0f) * cpu);
-            rayDirection = cameraDir + pos;
-            rayDirection = glm::normalize(glm::vec3(glm::vec4(rayDirection, 1.0f) * cpu));
-            invRaydir = 1.0f / rayDirection;
-
-            if (slabs(p0, p1, rayOrigin, invRaydir))
-            {
-                buffer[index].r = 255;
-                buffer[index].g = 0;
-                buffer[index].b = 0;
-            }
-            else
-            {
-                buffer[index].r = 0;
-                buffer[index].g = 255;
-                buffer[index].b = 255;
-            }
-        }
-    }
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
-    printf("DONE!\n");
-
     GLuint programID;
     programID = glCreateProgram();
 
@@ -217,11 +157,13 @@ void Window::drawUI()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Window::draw()
+void Window::draw(Octree &octree)
 {
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(_window))
     {
+        drawOctree(octree);
+
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -246,7 +188,7 @@ void Window::exit()
 
     glfwTerminate();
 
-    delete buffer;
+    delete[] buffer;
 }
 
 void Window::resize(uint32_t width, uint32_t height)
@@ -257,11 +199,184 @@ void Window::resize(uint32_t width, uint32_t height)
     _ratio = float(width) / float(height);
 }
 
-bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &invRd)
+void Window::drawOctree(Octree &octree)
 {
+    double time = glfwGetTime();
+
+    glm::vec3 center = glm::vec3(1.0f, 2.0f, 0.0f);
+    glm::vec3 p0 = center - glm::vec3(0.5f);
+    glm::vec3 p1 = center + glm::vec3(0.5f);
+
+    glm::vec3 cameraPos = glm::vec3(1.0f, 2.0f, 2.0f);
+    glm::vec3 rotation = glm::vec3(1.0f, 1.0f, 0.0f);
+    cameraPos += rotation;
+    // cameraPos.y = -2.0f * sin(glm::radians(-45.0f)); // Tilt down
+    // cameraPos = glm::vec3(cameraPos.x, cameraPos.y + (0.25f * sin(time)), cameraPos.z);
+    // cameraPos.x = (cameraPos.x * cos(time)) - (cameraPos.z * sin(time));
+    // cameraPos.z = (cameraPos.z * cos(time)) + (cameraPos.x * sin(time));
+
+    // cameraPos.x = -2.0f * cos(glm::radians(15.0f));
+    // cameraPos.z = -2.0f * sin(glm::radians(15.0f));
+
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraDir = glm::normalize(center - cameraPos); // glm::vec3(0.0f, 0.0f, -1.0f);
+
+    glm::mat4 viewMatrix = glm::lookAt(cameraPos, center, cameraUp);
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), _vratio, -1.0f, 1.0f);
+    glm::mat4 cpu = projectionMatrix * viewMatrix;
+    // glm::mat4 cpu = glm::mat4(1.0f);
+
+    float rx, ry;
+    glm::vec3 pos;
+    glm::vec3 rayOrigin;
+    glm::vec3 rayDirection;
+    glm::vec3 normal;
+
+    uint64_t index = 0;
+    for (int y = 0; y < _vheight; y++)
+    {
+        for (int x = 0; x < _vwidth; x++)
+        {
+            index = x + (y * _vwidth);
+            rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
+            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
+            pos = glm::vec3(rx, ry, 0.0f);
+
+            // Ray
+            rayOrigin = cameraPos + pos;
+            rayDirection = cameraDir;
+
+            // rayOrigin = glm::vec3(rayOrigin.x, rayOrigin.y + (0.25f * sin(time)), rayOrigin.z);
+            // rayOrigin.x = rayOrigin.x * cos(time) - rayOrigin.z * sin(time);
+            // rayOrigin.z = rayOrigin.z * cos(time) + rayOrigin.x * sin(time);
+            // rayDirection.x = rayDirection.x * cos(time) - rayDirection.z * sin(time);
+            // rayDirection.z = rayDirection.z * cos(time) + rayDirection.x * sin(time);
+
+            rayOrigin = glm::vec3(glm::vec4(rayOrigin, 1.0f));
+            rayDirection = glm::vec3(glm::vec4(rayDirection, 1.0f));
+
+            rayDirection = glm::normalize(rayDirection);
+
+            if (slabs(p0, p1, rayOrigin, rayDirection, normal))
+            {
+                buffer[index].r = 255 * (uint8_t)normal.x;
+                buffer[index].g = 255 * (uint8_t)normal.y;
+                buffer[index].b = 255 * (uint8_t)normal.z;
+            }
+            else
+            {
+                buffer[index].r = 0;
+                buffer[index].g = 255;
+                buffer[index].b = 255;
+            }
+        }
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+}
+
+#if 0
+void Window::drawOctree(Octree &octree)
+{
+    // Octree Tests
+
+    // CPU Raytracing Tests
+    // printf("Tracing...");
+    // glm::vec3 center = glm::vec3(_vratio / 2, 0.5f, 1.25f);
+    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 p0 = center - glm::vec3(0.5f);
+    glm::vec3 p1 = center + glm::vec3(0.5f);
+
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 2.0f);
+    // cameraPos.y = -2.0f * sin(glm::radians(-15.0f)); // Tilt down
+
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, -1.0f);
+
+    glm::mat4 viewMatrix = glm::lookAt(cameraPos, center, cameraUp);
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), _vratio, -1.0f, 1.0f);
+    glm::mat4 cpu = projectionMatrix * viewMatrix;
+    // glm::mat4 cpu = glm::mat4(1.0f);
+
+    float rx, ry;
+    glm::vec3 pos;
+    glm::vec3 rayOrigin;
+    glm::vec3 rayDirection;
+
+    uint64_t index = 0;
+    for (int y = 0; y < _vheight; y++)
+    {
+        for (int x = 0; x < _vwidth; x++)
+        {
+            index = x + (y * _vwidth);
+            rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
+            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
+            // rx = (float(x) / _vwidthf) * 3.0f;
+            // ry = (float(y) / _vheightf) * 3.0f;
+            pos = glm::vec3(glm::vec4(rx, ry, 0.0f, 1.0f));
+
+            // Ray
+            rayOrigin = cameraPos;
+            rayDirection = cameraDir + pos;
+
+            rayOrigin = glm::vec3(glm::vec4(rayOrigin, 1.0f) * cpu);
+            rayDirection = glm::vec3(glm::vec4(rayDirection, 1.0f) * cpu);
+
+            rayDirection = glm::normalize(rayDirection);
+
+            // double time = glfwGetTime();
+            // rayOrigin = glm::vec3(rayOrigin.x, rayOrigin.y + (0.25f * sin(time)), rayOrigin.z);
+
+            // rayOrigin.x = rayOrigin.x * cos(time) - rayOrigin.z * sin(time);
+            // rayOrigin.z = rayOrigin.z * cos(time) + rayOrigin.x * sin(time);
+            // rayDirection.x = rayDirection.x * cos(time) - rayDirection.z * sin(time);
+            // rayDirection.z = rayDirection.z * cos(time) + rayDirection.x * sin(time);
+
+            // if (octree.raymarch(rayOrigin, rayDirection))
+            // {
+            //     buffer[index].r = 255;
+            //     buffer[index].g = 0;
+            //     buffer[index].b = 0;
+            // }
+            // else
+            // {
+            //     buffer[index].r = 0;
+            //     buffer[index].g = 255;
+            //     buffer[index].b = 255;
+            // }
+
+            if (slabs(p0, p1, rayOrigin, rayDirection))
+            {
+                buffer[index].r = 255;
+                buffer[index].g = 0;
+                buffer[index].b = 0;
+            }
+            else
+            {
+                buffer[index].r = 0;
+                buffer[index].g = 255;
+                buffer[index].b = 255;
+            }
+        }
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+    // printf("DONE!\n");
+}
+#endif
+
+bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &r_normal)
+{
+    glm::vec3 invRd = 1.0f / rd;
     glm::vec3 t0 = (p0 - ro) * invRd;
     glm::vec3 t1 = (p1 - ro) * invRd;
     glm::vec3 tmin = glm::min(t0, t1);
     glm::vec3 tmax = glm::max(t0, t1);
+
+    glm::vec3 tminyzx = glm::vec3(tmin.y, tmin.z, tmin.x);
+    glm::vec3 tminzxy = glm::vec3(tmin.z, tmin.x, tmin.y);
+
+    r_normal = -glm::sign(rd) * glm::step(tminyzx, tmin) * glm::step(tminzxy, tmin);
+
     return std::max(std::max(tmin.x, tmin.y), tmin.z) <= std::min(std::min(tmax.x, tmax.y), tmax.z);
 }

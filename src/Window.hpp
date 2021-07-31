@@ -1,3 +1,6 @@
+#ifndef _WINDOW_H
+#define _WINDOW_H
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -5,9 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#ifndef _WINDOW_H
-#define _WINDOW_H
-
+#include "Octree.hpp"
 struct Pixel
 {
     uint8_t r, g, b;
@@ -20,7 +21,7 @@ public:
     ~Window();
 
     void setup();
-    void draw();
+    void draw(Octree &octree);
     void exit();
     void resize(uint32_t width, uint32_t height);
 
@@ -30,7 +31,8 @@ public:
 private:
     void drawUI();
     // TEMP
-    bool slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &invRd);
+    bool slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &r_normal);
+    void drawOctree(Octree &octree);
 
 private:
     uint32_t _width, _height, _vwidth, _vheight;
