@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <iostream>
 
 class Octree
 {

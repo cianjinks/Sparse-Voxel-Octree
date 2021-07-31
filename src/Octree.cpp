@@ -20,7 +20,7 @@ const uint32_t Octree::BitCount[] = {
 
 Octree::Octree()
 {
-    _tree = {0x00001212};
+    _tree = {0x0000FFFF};
 }
 
 bool Octree::raymarch(glm::vec3 &ro,
@@ -81,7 +81,9 @@ bool Octree::raymarch(glm::vec3 &ro,
     while (scale < s_max)
     {
         if (current == 0)
+        {
             current = _tree[parent];
+        }
 
         float cornerTX = posX * dTx - bTx;
         float cornerTY = posY * dTy - bTy;
@@ -106,7 +108,7 @@ bool Octree::raymarch(glm::vec3 &ro,
 
             if (minT <= maxTV)
             {
-                uint64_t childOffset = current >> 17; // pointer for this parents child descriptors
+                uint64_t childOffset = current >> 16; // pointer for this parents child descriptors
                 // if (current & 0x20000)
                 //     childOffset = (childOffset << 32) | uint64_t(_tree[parent + 1]);
 
