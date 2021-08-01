@@ -204,7 +204,6 @@ void Window::resize(uint32_t width, uint32_t height)
     _ratio = float(width) / float(height);
 }
 
-#if 1
 void Window::drawOctree(Octree &octree)
 {
     double time = glfwGetTime();
@@ -238,11 +237,6 @@ void Window::drawOctree(Octree &octree)
     {
         for (int x = 0; x < _vwidth; x++)
         {
-            // if (x == (_vwidth / 2) && y == (_vheight / 2))
-            // {
-            //      printf("Center!\n");
-            // }
-
             rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
             ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
             pos = glm::vec3(rx, ry, 0.0f);
@@ -276,61 +270,6 @@ void Window::drawOctree(Octree &octree)
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
 }
-#endif
-
-#if 0
-void Window::drawOctree(Octree &octree)
-{
-
-    // glm::vec3 ro = glm::vec3(1.0f, 1.0f, -1.0f);
-    // glm::vec3 rd = glm::vec3(0.0f, 0.0f, 1.0f);
-    // bool test = octree.raymarch(ro, rd);
-    // printf("Test: %d\n", test);
-
-    double time = glfwGetTime();
-
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -2.0f);
-    glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 1.0f);
-
-    float rx, ry;
-    glm::vec3 pos;
-    glm::vec3 rayOrigin;
-    glm::vec3 rayDirection;
-
-    uint64_t index = 0;
-    for (int y = 0; y < _vheight; y++)
-    {
-        for (int x = 0; x < _vwidth; x++)
-        {
-            index = x + (y * _vwidth);
-            // rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
-            // ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
-            rx = (float(x) / _vwidthf);
-            ry = (float(y) / _vheightf);
-            pos = glm::vec3(rx, ry, 0.0f);
-
-            // Ray
-            rayOrigin = cameraPos;
-            rayDirection = glm::normalize(cameraDirection + pos);
-
-            if (octree.raymarch(rayOrigin, rayDirection))
-            {
-                buffer[index].r = 255;
-                buffer[index].g = 0;
-                buffer[index].b = 0;
-            }
-            else
-            {
-                buffer[index].r = 0;
-                buffer[index].g = 255;
-                buffer[index].b = 255;
-            }
-        }
-    }
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
-}
-#endif
 
 bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &r_normal)
 {

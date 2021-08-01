@@ -20,10 +20,113 @@ const uint32_t Octree::BitCount[] = {
 
 Octree::Octree()
 {
-    // _tree = {0x0000FFFF};
-    // _tree = {0x0001FF00,
-    //          0x00004141, 0x00004141, 0x00004141, 0x00004141,
-    //          0x00004141, 0x00004141, 0x00004141, 0x00004141};
+    // _tree = {0x0004FF00};
+    // It would appear leaf mask is the left 8 bits?
+    // _tree = {0x0004FFFF,
+    //          0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //          0x00008200, 0x00008200, 0x00008200, 0x00008200};
+    _treeSize = 1 + (8 * 9); // Why the extra 8? One of the rows must be being skipped somehow
+    _tree = {
+        0x0004FFFF,
+        0x0023FFFF, 0x0042FFFF, 0x0061FFFF, 0x0080FFFF,
+        0x009FFFFF, 0x00BEFFFF, 0x00DDFFFF, 0x00FCFFFF,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    };
+
+#if 0
+    _tree = {
+        0x43333,
+        0x10FFFF,
+        0x8C5555,
+        0xBC0F0F,
+        0xF00404,
+        0x208000,
+        0x20C000,
+        0x24A000,
+        0x28F000,
+        0x348800,
+        0x38CC00,
+        0x44AA00,
+        0x50EC00,
+        0xC61919FE,
+        0xCCECD2FE,
+        0xD7FD45FE,
+        0xC619FFFE,
+        0xC61AE5FE,
+        0xD045E77E,
+        0xD6A5F77E,
+        0xCCEF2CFE,
+        0xD7FAB9FE,
+        0xA8DC43FE,
+        0x83E319FE,
+        0xA68D62FE,
+        0xA9B7337E,
+        0xB4EDDA7E,
+        0xB766B07E,
+        0x8FB0DF7E,
+        0x96C1447E,
+        0x8C0AA1FE,
+        0x9B1F11FE,
+        0xC61AE5FE,
+        0x29B333FE,
+        0x59E119FE,
+        0x3A61597E,
+        0x1B9F86FE,
+        0x104000,
+        0x105000,
+        0x144400,
+        0x185500,
+        0xD7FD45FE,
+        0xDC35FFFE,
+        0xD7FAB9FE,
+        0x4C49E7E,
+        0x45F86FE,
+        0xC494EFE,
+        0x1B349E7E,
+        0xFAAE07E,
+        0x167EA97E,
+        0x100800,
+        0x100C00,
+        0x140A00,
+        0x181F00,
+        0x47FD45FE,
+        0x4C348BFE,
+        0x5308D2FE,
+        0x47FD45FE,
+        0x47FEB9FE,
+        0x4FC5E67E,
+        0x55357BFE,
+        0x4DAEC7FE,
+        0x530B2C7E,
+        0x4FC5E67E,
+        0x40500,
+        0x59E1FFFE,
+        0x59E2E5FE};
+#endif
+#if 0
     _tree = {
         0x4FFFF,
         0x207F7F,
@@ -696,6 +799,7 @@ Octree::Octree()
         0x59E2E5FE,
         0x59E2E5FE,
         0x59E2E5FE};
+#endif
 }
 
 bool Octree::raymarch(glm::vec3 &ro,
@@ -766,7 +870,11 @@ bool Octree::raymarch(glm::vec3 &ro,
     while (scale < MaxScale)
     {
         if (current == 0)
+        {
+            // printf("Parent: %u\n", parent);
+            if(parent >= _treeSize) { return false; }
             current = _tree[parent];
+        }
 
         float cornerTX = posX * dTx - bTx;
         float cornerTY = posY * dTy - bTy;
@@ -811,6 +919,7 @@ bool Octree::raymarch(glm::vec3 &ro,
 
                 uint32_t siblingCount = BitCount[childMasks & 127];
                 parent += childOffset + siblingCount;
+                // printf("Sibling Count: %u\n", siblingCount);
                 if (current & 0x10000)
                     parent += siblingCount;
 

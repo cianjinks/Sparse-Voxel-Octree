@@ -22,6 +22,7 @@ public:
 
 private:
     std::vector<uint32_t> _tree;
+    uint64_t _treeSize;
     static const uint32_t BitCount[];
 
     static inline float
