@@ -218,7 +218,7 @@ void Window::drawOctree(Octree &octree)
     trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::vec3 offset = glm::vec3(1.5f, 2.0f, 1.5f); // Octree Location
-    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, -1.0f);
+    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, 0.0f);
     glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
 
     cameraPos = glm::vec3(trans * glm::vec4(cameraPos - offset, 1.0f)) + offset;
@@ -229,7 +229,8 @@ void Window::drawOctree(Octree &octree)
     glm::vec3 rayOrigin;
     glm::vec3 rayDirection;
 
-    glm::vec3 normal;
+    glm::vec3 hit;
+    uint32_t normal;
     int idx = 0;
 
     uint64_t index = 0;
@@ -237,6 +238,11 @@ void Window::drawOctree(Octree &octree)
     {
         for (int x = 0; x < _vwidth; x++)
         {
+            // if (x == (_vwidth / 2) && y == (_vheight / 2))
+            // {
+            //      printf("Center!\n");
+            // }
+
             rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
             ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
             pos = glm::vec3(rx, ry, 0.0f);
@@ -252,16 +258,12 @@ void Window::drawOctree(Octree &octree)
             rayDirection = cameraDir + pos;
 
             index = x + (y * _vwidth);
-            if (octree.raymarch(rayOrigin, rayDirection, normal, idx))
+            if (octree.raymarch(rayOrigin, rayDirection, hit, normal, idx))
             {
-                // buffer[index].r = 255;
-                // buffer[index].g = 0;
+                // buffer[index].r = 0;
+                // buffer[index].g = 255;
                 // buffer[index].b = 0;
-                // buffer[index] = colors[idx];
-                buffer[index].r = 0;
-                buffer[index].g = (uint8_t)(255.0f / (normal.x + 1.0f));
-                buffer[index].b = 0;
-                // printf("X Dist: %.3f | Y Dist: %.3f | Z Dist: %.3f\n", normal.x, normal.y, normal.z);
+                buffer[index] = colors[idx];
             }
             else
             {
