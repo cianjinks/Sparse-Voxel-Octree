@@ -25,41 +25,45 @@ Octree::Octree()
 
 bool Octree::raymarch(glm::vec3 &ro,
                       glm::vec3 &rd,
-                      glm::vec3 &r_normal,
+                      glm::vec3 &r_hit,
                       int &r_idx)
 {
-    const int s_max = 23; // Maximum scale (number of float mantissa bits).
+    glm::vec3 rayOrigin = ro;
+    glm::vec3 rayDirection = rd;
+
+    const float rayScale = 1.0f;
+    const int MaxScale = 23; // Maximum scale (number of float mantissa bits).
     struct StackEntry
     {
         uint64_t offset;
         float maxT;
     };
-    StackEntry rayStack[s_max + 1];
+    StackEntry rayStack[MaxScale + 1];
 
-    glm::vec3 rayOrigin = ro;
-    glm::vec3 rayDirection = rd;
+    float ox = ro.x, oy = ro.y, oz = ro.z;
+    float dx = rd.x, dy = rd.y, dz = rd.z;
 
-    if (std::fabs(rd.x) < 1e-4f)
-        rd.x = 1e-4f;
-    if (std::fabs(rd.y) < 1e-4f)
-        rd.y = 1e-4f;
-    if (std::fabs(rd.z) < 1e-4f)
-        rd.z = 1e-4f;
+    if (std::fabs(dx) < 1e-4f)
+        dx = 1e-4f;
+    if (std::fabs(dy) < 1e-4f)
+        dy = 1e-4f;
+    if (std::fabs(dz) < 1e-4f)
+        dz = 1e-4f;
 
-    float dTx = 1.0f / -std::fabs(rd.x);
-    float dTy = 1.0f / -std::fabs(rd.y);
-    float dTz = 1.0f / -std::fabs(rd.z);
+    float dTx = 1.0f / -std::fabs(dx);
+    float dTy = 1.0f / -std::fabs(dy);
+    float dTz = 1.0f / -std::fabs(dz);
 
-    float bTx = dTx * ro.x;
-    float bTy = dTy * ro.y;
-    float bTz = dTz * ro.z;
+    float bTx = dTx * ox;
+    float bTy = dTy * oy;
+    float bTz = dTz * oz;
 
     uint8_t octantMask = 7;
-    if (rd.x > 0.0f)
+    if (dx > 0.0f)
         octantMask ^= 1, bTx = 3.0f * dTx - bTx;
-    if (rd.y > 0.0f)
+    if (dy > 0.0f)
         octantMask ^= 2, bTy = 3.0f * dTy - bTy;
-    if (rd.z > 0.0f)
+    if (dz > 0.0f)
         octantMask ^= 4, bTz = 3.0f * dTz - bTz;
 
     float minT = std::max(2.0f * dTx - bTx, std::max(2.0f * dTy - bTy, 2.0f * dTz - bTz));
@@ -72,7 +76,7 @@ bool Octree::raymarch(glm::vec3 &ro,
     float posX = 1.0f;
     float posY = 1.0f;
     float posZ = 1.0f;
-    int scale = s_max - 1;
+    int scale = MaxScale - 1;
 
     float scaleExp2 = 0.5f;
 
@@ -83,15 +87,10 @@ bool Octree::raymarch(glm::vec3 &ro,
     if (1.5f * dTz - bTz > minT)
         idx ^= 4, posZ = 1.5f;
 
-    while (scale < s_max)
+    while (scale < MaxScale)
     {
         if (current == 0)
-        {
-            if (parent == 0)
-            {
-                current = _tree[parent];
-            }
-        }
+            current = _tree[parent];
 
         float cornerTX = posX * dTx - bTx;
         float cornerTY = posY * dTy - bTy;
@@ -103,8 +102,13 @@ bool Octree::raymarch(glm::vec3 &ro,
 
         if ((childMasks & 0x8000) && minT <= maxT)
         {
-            if (maxTC >= scaleExp2)
+            if (maxTC * rayScale >= scaleExp2)
             {
+                // Testing return value
+                r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
+                r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
+                r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
+
                 r_idx = idx;
                 return true;
             }
@@ -117,7 +121,7 @@ bool Octree::raymarch(glm::vec3 &ro,
 
             if (minT <= maxTV)
             {
-                uint64_t childOffset = current >> 16; // pointer for this parents child descriptors
+                uint64_t childOffset = current >> 18;
                 if (current & 0x20000)
                     childOffset = (childOffset << 32) | uint64_t(_tree[parent + 1]);
 
@@ -173,7 +177,7 @@ bool Octree::raymarch(glm::vec3 &ro,
             if (stepMask & 4)
                 differingBits |= floatBitsToUint(posZ) ^ floatBitsToUint(posZ + scaleExp2);
             scale = (floatBitsToUint((float)differingBits) >> 23) - 127;
-            scaleExp2 = uintBitsToFloat((scale - s_max + 127) << 23);
+            scaleExp2 = uintBitsToFloat((scale - MaxScale + 127) << 23);
 
             parent = rayStack[scale].offset;
             maxT = rayStack[scale].maxT;
@@ -190,34 +194,13 @@ bool Octree::raymarch(glm::vec3 &ro,
         }
     }
 
-    if (scale >= s_max)
-    {
+    if (scale >= MaxScale)
         return false;
-    }
 
-    // Normals
-    glm::vec3 pos = glm::vec3(posX, posY, posZ);
-    glm::vec3 t_coef = glm::vec3(dTx, dTy, dTz);
-    glm::vec3 t_bias = glm::vec3(bTx, bTy, bTz);
-    glm::vec3 t_corner = t_coef * (pos + scaleExp2) - t_bias;
-    if (t_corner.x > t_corner.y && t_corner.x > t_corner.z)
-    {
-        r_normal = glm::vec3(-1, 0, 0);
-    }
-    else if (t_corner.y > t_corner.z)
-    {
-        r_normal = glm::vec3(0, -1, 0);
-    }
-    else
-    {
-        r_normal = glm::vec3(0, 0, -1);
-    }
-    if ((octantMask & 1u) == 0u)
-        r_normal.x = -r_normal.x;
-    if ((octantMask & 2u) == 0u)
-        r_normal.y = -r_normal.y;
-    if ((octantMask & 4u) == 0u)
-        r_normal.z = -r_normal.z;
+    // Testing return value
+    r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
+    r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
+    r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
 
     r_idx = idx;
     return true;

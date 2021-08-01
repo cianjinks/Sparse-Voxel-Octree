@@ -209,13 +209,20 @@ void Window::drawOctree(Octree &octree)
 {
     double time = glfwGetTime();
 
-    // glm::vec3 center = glm::vec3(1.5f, 1.5f, 0.0f);
-    // glm::vec3 p0 = center + glm::vec3(0.25f, 0.25f, 0.25f);
-    // glm::vec3 p1 = center - glm::vec3(0.25f, 0.25f, 0.25f);
+    glm::vec3 center = glm::vec3(1.75f, 1.75f, -0.25f);
+    glm::vec3 p0 = center + glm::vec3(0.25f, 0.25f, 0.25f);
+    glm::vec3 p1 = center - glm::vec3(0.25f, 0.25f, 0.25f);
 
-    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, -1.0f);
+    glm::mat4 trans = glm::mat4(1.0f);
+    // trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::vec3 octreeLoc = glm::vec3(1.0f, 2.0f, 0.0f);
+    glm::vec3 cameraPos = glm::vec3(1.0f, 2.0f, -1.0f);
     glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
-    glm::vec3 offset = glm::vec3(0.5f, 0.5f, 0.0f);
+
+    cameraPos = glm::vec3(trans * glm::vec4(cameraPos - octreeLoc, 1.0f)) + octreeLoc;
+    cameraDir = glm::vec3(trans * glm::vec4(cameraDir, 1.0f));
 
     // glm::mat4 proj = glm::perspective(45.0f, _vratio, 0.1f, 100.0f);
     // glm::mat4 view = glm::lookAt(cameraPos, glm::vec3(1.5f, 1.5f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -229,9 +236,6 @@ void Window::drawOctree(Octree &octree)
     glm::vec3 normal;
     int idx = 0;
 
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, (float)time, glm::vec3(1.5f, 1.5f, 1.0f));
-
     uint64_t index = 0;
     for (int y = 0; y < _vheight; y++)
     {
@@ -240,9 +244,7 @@ void Window::drawOctree(Octree &octree)
             rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
             ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
             pos = glm::vec3(rx, ry, 0.0f);
-
-            // pos.x = pos.x * cos(time) - pos.z * sin(time);
-            // pos.z = pos.z * cos(time) + pos.x * sin(time);
+            pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
 
             // Ray
             // Orthographic:
@@ -251,22 +253,27 @@ void Window::drawOctree(Octree &octree)
 
             // Perspective:
             rayOrigin = cameraPos;
-            rayDirection = glm::normalize(cameraDir + pos);
+            rayDirection = cameraDir + pos;
 
             // rayOrigin.x = rayOrigin.x * cos(time) - rayOrigin.z * sin(time);
             // rayOrigin.z = rayOrigin.z * cos(time) + rayOrigin.x * sin(time);
             // rayDirection.x = rayDirection.x * cos(time) - rayDirection.z * sin(time);
             // rayDirection.z = rayDirection.z * cos(time) + rayDirection.x * sin(time);
-            rayOrigin = glm::vec3(trans * glm::vec4(rayOrigin, 1.0f));
-            rayDirection = glm::vec3(trans * glm::vec4(rayDirection, 1.0f));
+            // rayOrigin = glm::vec3(trans * glm::vec4(rayOrigin - offset, 1.0f)) + offset;
+            // rayDirection = glm::vec3(trans * glm::vec4(rayDirection - offset, 1.0f)) + offset;
 
             index = x + (y * _vwidth);
+#if 1
             if (octree.raymarch(rayOrigin, rayDirection, normal, idx))
             {
                 // buffer[index].r = 255;
                 // buffer[index].g = 0;
                 // buffer[index].b = 0;
-                buffer[index] = colors[idx];
+                // buffer[index] = colors[idx];
+                buffer[index].r = 0;
+                buffer[index].g = (uint8_t)(255.0f / (normal.x + 1.0f));
+                buffer[index].b = 0;
+                //printf("X Dist: %.3f | Y Dist: %.3f | Z Dist: %.3f\n", normal.x, normal.y, normal.z);
             }
             else
             {
@@ -274,18 +281,20 @@ void Window::drawOctree(Octree &octree)
                 buffer[index].g = 255;
                 buffer[index].b = 255;
             }
-            // if (slabs(p0, p1, rayOrigin, rayDirection, normal))
-            // {
-            //     buffer[index].r = 255;
-            //     buffer[index].g = 0;
-            //     buffer[index].b = 0;
-            // }
-            // else
-            // {
-            //     buffer[index].r = 0;
-            //     buffer[index].g = 255;
-            //     buffer[index].b = 255;
-            // }
+#else
+            if (slabs(p0, p1, rayOrigin, rayDirection, normal))
+            {
+                buffer[index].r = 255;
+                buffer[index].g = 0;
+                buffer[index].b = 0;
+            }
+            else
+            {
+                buffer[index].r = 0;
+                buffer[index].g = 255;
+                buffer[index].b = 255;
+            }
+#endif
         }
     }
 
