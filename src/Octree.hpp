@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <vector>
+#include <stack>
 #include <cstdint>
 #include <iostream>
 
@@ -13,6 +14,8 @@ class Octree
 {
 public:
     Octree();
+
+    void generate();
 
     bool raymarch(glm::vec3 &ro,
                   glm::vec3 &rd,
@@ -25,8 +28,7 @@ private:
     uint64_t _treeSize;
     static const uint32_t BitCount[];
 
-    static inline float
-    uintBitsToFloat(uint32_t i)
+    static inline float uintBitsToFloat(uint32_t i)
     {
         union
         {

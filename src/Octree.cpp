@@ -20,37 +20,72 @@ const uint32_t Octree::BitCount[] = {
 
 Octree::Octree()
 {
-    _treeSize = 1 + (8 * 9);
+    // _treeSize = 1 + (8 * 9);
 
-    _tree = {
-        0x0004FFFF,
-        0x0020FFFF, 0x003CFFFF, 0x0058FFFF, 0x0074FFFF,
-        0x0090FFFF, 0x00ACFFFF, 0x00C8FFFF, 0x00E4FFFF,
+    // _tree = {
+    //     0x0004FFFF,
+    //     0x0020FFFF, 0x003CFFFF, 0x0058FFFF, 0x0074FFFF,
+    //     0x0090FFFF, 0x00ACFFFF, 0x00C8FFFF, 0x00E4FFFF,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
 
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-        0x00008200, 0x00008200, 0x00008200, 0x00008200,
-    };
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
+    // };
+    generate();
+}
+
+void Octree::generate()
+{
+    uint32_t depth = 0;
+    uint32_t offset = 0;
+    uint32_t index = 0;
+
+    std::stack<uint32_t> stack;
+    stack.push(0);
+
+    _tree.push_back(0x0000FFFF);
+    while(!stack.empty())
+    {
+        index = stack.top();
+        stack.pop();
+
+        _tree[index] |= offset << 17;
+        if(depth < 1)
+        {
+            for(int i = 0; i < 8; i++)
+            {
+                _tree.push_back(0x0000FFFF);
+                stack.push(index + (8 - i));
+            }
+            depth += 8;
+        }
+        offset = _tree.size() - index;
+        index += offset;
+
+        depth--;
+    }
+
+    _treeSize = _tree.size();
 }
 
 bool Octree::raymarch(glm::vec3 &ro,
@@ -122,11 +157,9 @@ bool Octree::raymarch(glm::vec3 &ro,
     {
         if (current == 0)
         {
-            // printf("Parent: %u\n", parent);
-            if(parent >= _treeSize) { return false; }
-            // if(parent > 8) {
-            //     printf("YAY: %u!\n", parent);
-            // }
+            if(parent >= _treeSize) {
+                return false;
+            }
             current = _tree[parent];
         }
 
@@ -159,10 +192,6 @@ bool Octree::raymarch(glm::vec3 &ro,
 
             if (minT <= maxTV)
             {
-                uint64_t childOffset = current >> 18;
-                if (current & 0x20000)
-                    childOffset = (childOffset << 32) | uint64_t(_tree[parent + 1]);
-
                 if (!(childMasks & 0x80))
                 {
                     break;
@@ -172,8 +201,8 @@ bool Octree::raymarch(glm::vec3 &ro,
                 rayStack[scale].maxT = maxT;
 
                 uint32_t siblingCount = BitCount[childMasks & 127];
+                uint64_t childOffset = current >> 17;
                 parent += childOffset + siblingCount;
-                //printf("Sibling Count: %u\n", siblingCount);
                 if (current & 0x10000)
                     parent += siblingCount;
 
