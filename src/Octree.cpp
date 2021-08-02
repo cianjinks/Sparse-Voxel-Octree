@@ -66,11 +66,10 @@ void Octree::generate()
     _tree.push_back(0x0000FFFF);
     while(!stack.empty())
     {
-        index = stack.top();
-        stack.pop();
-
+        offset = _tree.size() - index;
         _tree[index] |= offset << 17;
-        if(depth < 1)
+        index += offset;
+        if(depth < 8)
         {
             for(int i = 0; i < 8; i++)
             {
@@ -79,10 +78,12 @@ void Octree::generate()
             }
             depth += 8;
         }
-        offset = _tree.size() - index;
-        index += offset;
-
-        depth--;
+        else
+        {
+            for(int i = 0; i < 8; i++) { _tree.push_back(0x00008200); }
+            index = stack.top();
+            stack.pop();
+        }
     }
 
     _treeSize = _tree.size();
