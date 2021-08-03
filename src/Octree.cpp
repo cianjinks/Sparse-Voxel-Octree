@@ -56,32 +56,45 @@ Octree::Octree()
 
 void Octree::generate()
 {
+    const uint32_t maxDepth = 3;
+
     uint32_t depth = 0;
     uint32_t offset = 0;
     uint32_t index = 0;
 
-    std::stack<uint32_t> stack;
-    stack.push(0);
+    struct StackEntry
+    {
+        uint32_t index;
+        uint32_t depth;
+    };
+    std::stack<StackEntry> stack;
+    stack.push(StackEntry{0, 0});
+    StackEntry current;
 
     _tree.push_back(0x0000FFFF);
-    while(!stack.empty())
+    while (!stack.empty())
     {
         offset = _tree.size() - index;
         _tree[index] |= offset << 17;
         index += offset;
-        if(depth < 8)
+        if (depth < maxDepth)
         {
-            for(int i = 0; i < 8; i++)
+            depth++;
+            for (int i = 0; i < 8; i++)
             {
                 _tree.push_back(0x0000FFFF);
-                stack.push(index + (8 - i));
+                stack.push(StackEntry{index + (8 - i), depth});
             }
-            depth += 8;
         }
         else
         {
-            for(int i = 0; i < 8; i++) { _tree.push_back(0x00008200); }
-            index = stack.top();
+            for (int i = 0; i < 8; i++)
+            {
+                _tree.push_back(0x00008200);
+            }
+            current = stack.top();
+            index = current.index;
+            depth = current.depth;
             stack.pop();
         }
     }
@@ -158,7 +171,8 @@ bool Octree::raymarch(glm::vec3 &ro,
     {
         if (current == 0)
         {
-            if(parent >= _treeSize) {
+            if (parent >= _treeSize)
+            {
                 return false;
             }
             current = _tree[parent];
