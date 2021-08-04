@@ -51,10 +51,10 @@ Octree::Octree()
     //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
     //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
     // };
-    generate();
+    Generate();
 }
 
-void Octree::generate()
+void Octree::Generate()
 {
     const uint32_t maxDepth = 3;
 
@@ -102,12 +102,12 @@ void Octree::generate()
     _treeSize = _tree.size();
 }
 
-bool Octree::raymarch(glm::vec3 &ro,
+bool Octree::Raymarch(glm::vec3 &ro,
                       glm::vec3 &rd,
                       glm::vec3 &r_hit,
                       glm::vec3 &r_normal,
-                      float &depth,
-                      int &r_idx)
+                      int &r_idx,
+                      float &r_depth)
 {
     glm::vec3 rayOrigin = ro;
     glm::vec3 rayDirection = rd;
@@ -193,9 +193,9 @@ bool Octree::raymarch(glm::vec3 &ro,
             {
                 // Testing return value
                 // Hit
-                r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
-                r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
-                r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
+                r_hit.x = ro.x + (minT * rd.x);
+                r_hit.y = ro.x + (minT * rd.x);
+                r_hit.z = ro.x + (minT * rd.x);
 
                 // Normal
                 glm::vec3 t_corner;
@@ -214,7 +214,7 @@ bool Octree::raymarch(glm::vec3 &ro,
                 // r_normal = glm::normalize(r_normal);
 
                 // Depth
-                depth = minT;
+                r_depth = minT;
 
                 // Index
                 r_idx = idx ^ octantMask ^ 7;
@@ -304,9 +304,9 @@ bool Octree::raymarch(glm::vec3 &ro,
 
     // Testing return value
     // Hit
-    r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
-    r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
-    r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
+    r_hit.x = ro.x + (minT * rd.x);
+    r_hit.y = ro.x + (minT * rd.x);
+    r_hit.z = ro.x + (minT * rd.x);
 
     // Normal
     glm::vec3 t_corner;
@@ -322,12 +322,113 @@ bool Octree::raymarch(glm::vec3 &ro,
         int((octantMask & 4u) == 0u));
     mask = (mask * 2.0f) - 1.0f;
     r_normal = mask * glm::vec3(x, y, z);
-    // r_normal = glm::normalize(r_normal);
+    r_normal = glm::normalize(r_normal);
 
     // Depth
-    depth = minT;
+    r_depth = minT;
 
     // Index
     r_idx = idx ^ octantMask ^ 7;
     return true;
+}
+
+void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float vheightf, Pixel *buffer, float time)
+{
+    // Camera
+    glm::vec3 offset = glm::vec3(1.5f, 2.0f, 1.5f); // Octree Location
+    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, 0.0f);
+    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    // Lighting
+    glm::vec3 lightColor = glm::vec3(1.0f);
+    glm::vec3 lightPos = glm::vec3(1.5f, 2.0f, 1.5f);
+    glm::vec3 objectColor = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    // Rotation
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::rotate(trans, glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    // trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    cameraPos = glm::vec3(trans * glm::vec4(cameraPos - offset, 1.0f)) + offset;
+    cameraDir = glm::vec3(trans * glm::vec4(cameraDir, 1.0f));
+
+    float rx, ry;
+    glm::vec3 pos;
+    glm::vec3 rayOrigin;
+    glm::vec3 rayDirection;
+
+    glm::vec3 hit;
+    glm::vec3 normal;
+    float depth = 0;
+    int idx = 0;
+
+    uint64_t index = 0;
+    for (int y = 0; y < vheight; y++)
+    {
+        for (int x = 0; x < vwidth; x++)
+        {
+            rx = ((float(x) * 2.0f) / vwidthf) - 1.0f;
+            ry = ((float(y) * 2.0f) / vheightf) - 1.0f;
+            pos = glm::vec3(rx, ry, 0.0f);
+            pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
+
+            // Ray
+            // Orthographic:
+            // rayOrigin = cameraPos + pos;
+            // rayDirection = cameraDir;
+
+            // Perspective:
+            rayOrigin = cameraPos;
+            rayDirection = cameraDir + pos;
+
+            index = x + (y * vwidth);
+            if (Raymarch(rayOrigin, rayDirection, hit, normal, idx, depth))
+            {
+                // buffer[index] = shadeDepth(objectColor, depth);
+                // buffer[index] = colors[idx];
+                buffer[index] = Shade(cameraPos, lightColor, lightPos, objectColor, normal, hit);
+            }
+            else
+            {
+                buffer[index].r = 25;
+                buffer[index].g = 25;
+                buffer[index].b = 25;
+            }
+        }
+    }
+}
+
+Pixel Octree::Shade(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)
+{
+    // Ambient
+    float ambientStrength = 0.1f;
+    glm::vec3 ambient = ambientStrength * lightColor;
+
+    // Diffuse
+    glm::vec3 lightDir = glm::normalize(lightPos - hitPos);
+    float diff = std::max(glm::dot(normal, lightDir), 0.0f);
+    glm::vec3 diffuse = diff * lightColor;
+
+    // Specular
+    // float specularStrength = 0.5;
+    // glm::vec3 reflectDir = glm::reflect(-lightDir, normal);
+    // float spec = glm::pow(std::max(glm::dot(viewDir, reflectDir), 0.0f), 32);
+    // glm::vec3 specular = specularStrength * spec * lightColor;
+
+    glm::vec3 resultv = (ambient + diffuse) * objectColor;
+
+    Pixel result;
+    result.r = (uint32_t)(resultv.r * 255.0f);
+    result.g = (uint32_t)(resultv.g * 255.0f);
+    result.b = (uint32_t)(resultv.b * 255.0f);
+    return result;
+}
+
+Pixel Octree::ShadeDepth(glm::vec3 &objectColor, float &depth)
+{
+    Pixel result;
+    result.r = (uint32_t)(objectColor.r * 255.0f);
+    result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
+    result.b = (uint32_t)(objectColor.b * 255.0f);
+    return result;
 }

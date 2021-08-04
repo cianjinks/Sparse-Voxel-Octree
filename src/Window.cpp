@@ -25,11 +25,7 @@ Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheigh
     buffer = new Pixel[_pixels];
 }
 
-Window::~Window()
-{
-}
-
-void Window::setup()
+void Window::Setup()
 {
     /* Initialize the library */
     if (!glfwInit())
@@ -57,7 +53,7 @@ void Window::setup()
     glfwSetFramebufferSizeCallback(_window, [](GLFWwindow *window, int width, int height)
                                    {
                                        Window *w = (Window *)glfwGetWindowUserPointer(window);
-                                       w->resize((uint32_t)width, (uint32_t)height);
+                                       w->Resize((uint32_t)width, (uint32_t)height);
                                    });
 
     glEnable(GL_DEBUG_OUTPUT);
@@ -148,7 +144,7 @@ void Window::setup()
     ImGui_ImplOpenGL3_Init("#version 410");
 }
 
-void Window::drawUI()
+void Window::DrawUI()
 {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -162,20 +158,21 @@ void Window::drawUI()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Window::draw(Octree &octree)
+void Window::Draw(Octree *octree)
 {
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(_window))
     {
-        drawOctree(octree);
-
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
+        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        drawUI();
+        DrawUI();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(_window);
@@ -185,7 +182,7 @@ void Window::draw(Octree &octree)
     }
 }
 
-void Window::exit()
+void Window::Exit()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -196,127 +193,10 @@ void Window::exit()
     delete[] buffer;
 }
 
-void Window::resize(uint32_t width, uint32_t height)
+void Window::Resize(uint32_t width, uint32_t height)
 {
     glViewport(0, 0, width, height);
     _width = width;
     _height = height;
     _ratio = float(width) / float(height);
-}
-
-Pixel Window::shade(glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)
-{
-    // Ambient
-    float ambientStrength = 0.1f;
-    glm::vec3 ambient = ambientStrength * lightColor;
-
-    glm::vec3 lightDir = glm::normalize(lightPos - hitPos);
-    normal = glm::normalize(normal);
-    float diff = std::max(glm::dot(normal, lightDir), 0.0f);
-    glm::vec3 diffuse = diff * lightColor;
-
-    glm::vec3 resultv = (ambient + diffuse) * objectColor;
-
-    Pixel result;
-    result.r = (uint32_t)(resultv.r * 255.0f);
-    result.g = (uint32_t)(resultv.g * 255.0f);
-    result.b = (uint32_t)(resultv.b * 255.0f);
-    return result;
-}
-
-Pixel Window::shadeDepth(glm::vec3 &objectColor, float &depth)
-{
-    Pixel result;
-    result.r = (uint32_t)(objectColor.r * 255.0f);
-    result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
-    result.b = (uint32_t)(objectColor.b * 255.0f);
-    return result;
-}
-
-void Window::drawOctree(Octree &octree)
-{
-    // Lighting
-    glm::vec3 lightColor = glm::vec3(1.0f);
-    glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 1.5f);
-    glm::vec3 objectColor = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    double time = glfwGetTime();
-
-    glm::vec3 center = glm::vec3(1.5f, 1.5f, 1.5f);
-    glm::vec3 p0 = center + glm::vec3(0.5f, 0.5f, 0.5f);
-    glm::vec3 p1 = center - glm::vec3(0.5f, 0.5f, 0.5f);
-
-    glm::mat4 trans = glm::mat4(1.0f);
-    // trans = glm::rotate(trans, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glm::vec3 offset = glm::vec3(1.5f, 2.0f, 1.5f); // Octree Location
-    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, 0.0f);
-    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
-
-    cameraPos = glm::vec3(trans * glm::vec4(cameraPos - offset, 1.0f)) + offset;
-    cameraDir = glm::vec3(trans * glm::vec4(cameraDir, 1.0f));
-
-    float rx, ry;
-    glm::vec3 pos;
-    glm::vec3 rayOrigin;
-    glm::vec3 rayDirection;
-
-    glm::vec3 hit;
-    glm::vec3 normal;
-    float depth = 0;
-    int idx = 0;
-
-    uint64_t index = 0;
-    for (int y = 0; y < _vheight; y++)
-    {
-        for (int x = 0; x < _vwidth; x++)
-        {
-            rx = ((float(x) * 2.0f) / _vwidthf) - 1.0f;
-            ry = ((float(y) * 2.0f) / _vheightf) - 1.0f;
-            pos = glm::vec3(rx, ry, 0.0f);
-            pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
-
-            // Ray
-            // Orthographic:
-            // rayOrigin = cameraPos + pos;
-            // rayDirection = cameraDir;
-
-            // Perspective:
-            rayOrigin = cameraPos;
-            rayDirection = cameraDir + pos;
-
-            index = x + (y * _vwidth);
-            if (octree.raymarch(rayOrigin, rayDirection, hit, normal, depth, idx))
-            {
-                // buffer[index] = shadeDepth(objectColor, depth);
-                buffer[index] = colors[idx];
-                // buffer[index] = shade(lightColor, lightPos, objectColor, normal, hit);
-            }
-            else
-            {
-                buffer[index].r = 25;
-                buffer[index].g = 25;
-                buffer[index].b = 25;
-            }
-        }
-    }
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
-}
-
-bool Window::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &r_normal)
-{
-    glm::vec3 invRd = 1.0f / rd;
-    glm::vec3 t0 = (p0 - ro) * invRd;
-    glm::vec3 t1 = (p1 - ro) * invRd;
-    glm::vec3 tmin = glm::min(t0, t1);
-    glm::vec3 tmax = glm::max(t0, t1);
-
-    glm::vec3 tminyzx = glm::vec3(tmin.y, tmin.z, tmin.x);
-    glm::vec3 tminzxy = glm::vec3(tmin.z, tmin.x, tmin.y);
-
-    r_normal = -glm::sign(rd) * glm::step(tminyzx, tmin) * glm::step(tminzxy, tmin);
-
-    return std::max(std::max(tmin.x, tmin.y), tmin.z) <= std::min(std::min(tmax.x, tmax.y), tmax.z);
 }

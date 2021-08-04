@@ -7,3 +7,11 @@ Application::Application(uint32_t width, uint32_t height, uint32_t vwidth, uint3
 {
     std::cout << "Created App!" << std::endl;
 }
+
+void Application::Run()
+{
+    std::cout << "Running App..." << std::endl;
+    window.Setup();
+    window.Draw(&octree);
+    window.Exit();
+}
