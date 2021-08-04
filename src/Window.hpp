@@ -34,6 +34,7 @@ private:
     // TEMP
     bool slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &r_normal);
     Pixel shade(glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos);
+    Pixel shadeDepth(glm::vec3 &objectColor, float &depth);
     void drawOctree(Octree &octree);
 
 private:

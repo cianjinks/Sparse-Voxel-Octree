@@ -106,6 +106,7 @@ bool Octree::raymarch(glm::vec3 &ro,
                       glm::vec3 &rd,
                       glm::vec3 &r_hit,
                       glm::vec3 &r_normal,
+                      float &depth,
                       int &r_idx)
 {
     glm::vec3 rayOrigin = ro;
@@ -212,7 +213,10 @@ bool Octree::raymarch(glm::vec3 &ro,
                 r_normal = mask * glm::vec3(x, y, z);
                 // r_normal = glm::normalize(r_normal);
 
-                // index
+                // Depth
+                depth = minT;
+
+                // Index
                 r_idx = idx;
                 return true;
             }
@@ -320,7 +324,10 @@ bool Octree::raymarch(glm::vec3 &ro,
     r_normal = mask * glm::vec3(x, y, z);
     // r_normal = glm::normalize(r_normal);
 
-    // index
+    // Depth
+    depth = minT;
+
+    // Index
     r_idx = idx;
     return true;
 }

@@ -21,6 +21,7 @@ public:
                   glm::vec3 &rd,
                   glm::vec3 &r_hit,
                   glm::vec3 &r_normal,
+                  float &depth,
                   int &r_idx);
 
 private:

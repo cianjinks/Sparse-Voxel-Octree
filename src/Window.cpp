@@ -211,6 +211,7 @@ Pixel Window::shade(glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &object
     glm::vec3 ambient = ambientStrength * lightColor;
 
     glm::vec3 lightDir = glm::normalize(lightPos - hitPos);
+    normal = glm::normalize(normal);
     float diff = std::max(glm::dot(normal, lightDir), 0.0f);
     glm::vec3 diffuse = diff * lightColor;
 
@@ -223,12 +224,21 @@ Pixel Window::shade(glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &object
     return result;
 }
 
+Pixel Window::shadeDepth(glm::vec3 &objectColor, float &depth)
+{
+    Pixel result;
+    result.r = (uint32_t)(objectColor.r * 255.0f);
+    result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
+    result.b = (uint32_t)(objectColor.b * 255.0f);
+    return result;
+}
+
 void Window::drawOctree(Octree &octree)
 {
     // Lighting
     glm::vec3 lightColor = glm::vec3(1.0f);
     glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 1.5f);
-    glm::vec3 objectColor = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 objectColor = glm::vec3(0.0f, 1.0f, 0.0f);
 
     double time = glfwGetTime();
 
@@ -254,6 +264,7 @@ void Window::drawOctree(Octree &octree)
 
     glm::vec3 hit;
     glm::vec3 normal;
+    float depth = 0;
     int idx = 0;
 
     uint64_t index = 0;
@@ -276,13 +287,11 @@ void Window::drawOctree(Octree &octree)
             rayDirection = cameraDir + pos;
 
             index = x + (y * _vwidth);
-            if (octree.raymarch(rayOrigin, rayDirection, hit, normal, idx))
+            if (octree.raymarch(rayOrigin, rayDirection, hit, normal, depth, idx))
             {
-                // buffer[index].r = 0;
-                // buffer[index].g = 255;
-                // buffer[index].b = 0;
+                buffer[index] = shadeDepth(objectColor, depth);
                 // buffer[index] = colors[idx];
-                buffer[index] = shade(lightColor, lightPos, objectColor, normal, hit);
+                // buffer[index] = shade(lightColor, lightPos, objectColor, normal, hit);
             }
             else
             {
