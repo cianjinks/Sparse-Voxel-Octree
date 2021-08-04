@@ -20,7 +20,7 @@ public:
     bool raymarch(glm::vec3 &ro,
                   glm::vec3 &rd,
                   glm::vec3 &r_hit,
-                  uint32_t &r_normal,
+                  glm::vec3 &r_normal,
                   int &r_idx);
 
 private:

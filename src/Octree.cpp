@@ -105,7 +105,7 @@ void Octree::generate()
 bool Octree::raymarch(glm::vec3 &ro,
                       glm::vec3 &rd,
                       glm::vec3 &r_hit,
-                      uint32_t &r_normal,
+                      glm::vec3 &r_normal,
                       int &r_idx)
 {
     glm::vec3 rayOrigin = ro;
@@ -191,10 +191,28 @@ bool Octree::raymarch(glm::vec3 &ro,
             if (maxTC * rayScale >= scaleExp2)
             {
                 // Testing return value
+                // Hit
                 r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
                 r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
                 r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
 
+                // Normal
+                glm::vec3 t_corner;
+                t_corner.x = dTx * (ro.x + scaleExp2) - bTx;
+                t_corner.y = dTy * (ro.y + scaleExp2) - bTy;
+                t_corner.z = dTz * (ro.z + scaleExp2) - bTz;
+                int x = int(t_corner.x > t_corner.y && t_corner.x > t_corner.z);
+                int y = int(x == 0 && t_corner.y > t_corner.z);
+                int z = int(x == 0 && y == 0);
+                glm::vec3 mask = glm::vec3(
+                    int((octantMask & 1u) == 0u),
+                    int((octantMask & 2u) == 0u),
+                    int((octantMask & 4u) == 0u));
+                mask = (mask * 2.0f) - 1.0f;
+                r_normal = mask * glm::vec3(x, y, z);
+                // r_normal = glm::normalize(r_normal);
+
+                // index
                 r_idx = idx;
                 return true;
             }
@@ -281,10 +299,28 @@ bool Octree::raymarch(glm::vec3 &ro,
         return false;
 
     // Testing return value
+    // Hit
     r_hit.x = std::min(std::max(ro.x + minT * rd.x, ro.x + 1e-4f), ro.x + scaleExp2 - 1e-4f);
     r_hit.y = std::min(std::max(ro.y + minT * rd.y, ro.y + 1e-4f), ro.y + scaleExp2 - 1e-4f);
     r_hit.z = std::min(std::max(ro.z + minT * rd.z, ro.z + 1e-4f), ro.z + scaleExp2 - 1e-4f);
 
+    // Normal
+    glm::vec3 t_corner;
+    t_corner.x = dTx * (ro.x + scaleExp2) - bTx;
+    t_corner.y = dTy * (ro.y + scaleExp2) - bTy;
+    t_corner.z = dTz * (ro.z + scaleExp2) - bTz;
+    int x = int(t_corner.x > t_corner.y && t_corner.x > t_corner.z);
+    int y = int(x == 0 && t_corner.y > t_corner.z);
+    int z = int(x == 0 && y == 0);
+    glm::vec3 mask = glm::vec3(
+        int((octantMask & 1u) == 0u),
+        int((octantMask & 2u) == 0u),
+        int((octantMask & 4u) == 0u));
+    mask = (mask * 2.0f) - 1.0f;
+    r_normal = mask * glm::vec3(x, y, z);
+    // r_normal = glm::normalize(r_normal);
+
+    // index
     r_idx = idx;
     return true;
 }

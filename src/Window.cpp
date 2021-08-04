@@ -204,8 +204,32 @@ void Window::resize(uint32_t width, uint32_t height)
     _ratio = float(width) / float(height);
 }
 
+Pixel Window::shade(glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)
+{
+    // Ambient
+    float ambientStrength = 0.1f;
+    glm::vec3 ambient = ambientStrength * lightColor;
+
+    glm::vec3 lightDir = glm::normalize(lightPos - hitPos);
+    float diff = std::max(glm::dot(normal, lightDir), 0.0f);
+    glm::vec3 diffuse = diff * lightColor;
+
+    glm::vec3 resultv = (ambient + diffuse) * objectColor;
+
+    Pixel result;
+    result.r = (uint32_t)(resultv.r * 255.0f);
+    result.g = (uint32_t)(resultv.g * 255.0f);
+    result.b = (uint32_t)(resultv.b * 255.0f);
+    return result;
+}
+
 void Window::drawOctree(Octree &octree)
 {
+    // Lighting
+    glm::vec3 lightColor = glm::vec3(1.0f);
+    glm::vec3 lightPos = glm::vec3(3.0f, 2.0f, 1.5f);
+    glm::vec3 objectColor = glm::vec3(1.0f, 0.0f, 0.0f);
+
     double time = glfwGetTime();
 
     glm::vec3 center = glm::vec3(1.5f, 1.5f, 1.5f);
@@ -229,7 +253,7 @@ void Window::drawOctree(Octree &octree)
     glm::vec3 rayDirection;
 
     glm::vec3 hit;
-    uint32_t normal;
+    glm::vec3 normal;
     int idx = 0;
 
     uint64_t index = 0;
@@ -257,13 +281,14 @@ void Window::drawOctree(Octree &octree)
                 // buffer[index].r = 0;
                 // buffer[index].g = 255;
                 // buffer[index].b = 0;
-                buffer[index] = colors[idx];
+                // buffer[index] = colors[idx];
+                buffer[index] = shade(lightColor, lightPos, objectColor, normal, hit);
             }
             else
             {
-                buffer[index].r = 0;
-                buffer[index].g = 255;
-                buffer[index].b = 255;
+                buffer[index].r = 25;
+                buffer[index].g = 25;
+                buffer[index].b = 25;
             }
         }
     }
