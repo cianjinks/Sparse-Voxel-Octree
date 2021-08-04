@@ -289,8 +289,8 @@ void Window::drawOctree(Octree &octree)
             index = x + (y * _vwidth);
             if (octree.raymarch(rayOrigin, rayDirection, hit, normal, depth, idx))
             {
-                buffer[index] = shadeDepth(objectColor, depth);
-                // buffer[index] = colors[idx];
+                // buffer[index] = shadeDepth(objectColor, depth);
+                buffer[index] = colors[idx];
                 // buffer[index] = shade(lightColor, lightPos, objectColor, normal, hit);
             }
             else

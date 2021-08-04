@@ -90,7 +90,7 @@ void Octree::generate()
         {
             for (int i = 0; i < 8; i++)
             {
-                _tree.push_back(0x00008200);
+                _tree.push_back(0x00004200);
             }
             current = stack.top();
             index = current.index;
@@ -217,7 +217,7 @@ bool Octree::raymarch(glm::vec3 &ro,
                 depth = minT;
 
                 // Index
-                r_idx = idx;
+                r_idx = idx ^ octantMask ^ 7;
                 return true;
             }
 
@@ -328,6 +328,6 @@ bool Octree::raymarch(glm::vec3 &ro,
     depth = minT;
 
     // Index
-    r_idx = idx;
+    r_idx = idx ^ octantMask ^ 7;
     return true;
 }
