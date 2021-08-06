@@ -28,7 +28,7 @@ public:
     Pixel *buffer;
 
 private:
-    void DrawUI();
+    void DrawUI(Octree *octree);
 
 private:
     uint32_t _width,

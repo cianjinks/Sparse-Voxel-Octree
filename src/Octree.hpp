@@ -15,6 +15,19 @@
 class Octree
 {
 public:
+    // Camera
+    glm::vec3 OctreeLoc = glm::vec3(-1.5f, -1.5f, -1.5f); // Octree Location
+    glm::vec3 CameraPos = glm::vec3(0.0f, 0.0f, -1.5f);
+    glm::vec3 CameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    // Lighting
+    glm::vec3 LightColor = glm::vec3(1.0f);
+    glm::vec3 LightPos = glm::vec3(0.0f, 0.0f, -1.5f);
+    glm::vec3 ObjectColor = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    // Rotation
+    float Rotation = 120.0f;
+
     Octree();
 
     void Generate();

@@ -334,23 +334,13 @@ bool Octree::Raymarch(glm::vec3 &ro,
 
 void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float vheightf, Pixel *buffer, float time)
 {
-    // Camera
-    glm::vec3 offset = glm::vec3(1.5f, 2.0f, 1.5f); // Octree Location
-    glm::vec3 cameraPos = glm::vec3(1.5f, 1.5f, 0.0f);
-    glm::vec3 cameraDir = glm::vec3(0.0f, 0.0f, 1.0f);
-
-    // Lighting
-    glm::vec3 lightColor = glm::vec3(1.0f);
-    glm::vec3 lightPos = glm::vec3(1.5f, 2.0f, 1.5f);
-    glm::vec3 objectColor = glm::vec3(0.0f, 1.0f, 0.0f);
-
     // Rotation
     glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(Rotation), glm::vec3(0.0f, 1.0f, 0.0f));
     // trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
 
-    cameraPos = glm::vec3(trans * glm::vec4(cameraPos - offset, 1.0f)) + offset;
-    cameraDir = glm::vec3(trans * glm::vec4(cameraDir, 1.0f));
+    glm::vec3 cameraPos = glm::vec3(trans * glm::vec4(CameraPos, 1.0f));
+    glm::vec3 cameraDir = glm::vec3(trans * glm::vec4(CameraDir, 1.0f));
 
     float rx, ry;
     glm::vec3 pos;
@@ -378,7 +368,7 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
             // rayDirection = cameraDir;
 
             // Perspective:
-            rayOrigin = cameraPos;
+            rayOrigin = cameraPos - OctreeLoc;
             rayDirection = cameraDir + pos;
 
             index = x + (y * vwidth);
@@ -386,7 +376,8 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
             {
                 // buffer[index] = shadeDepth(objectColor, depth);
                 // buffer[index] = colors[idx];
-                buffer[index] = Shade(cameraPos, lightColor, lightPos, objectColor, normal, hit);
+                hit += OctreeLoc;
+                buffer[index] = Shade(cameraPos, LightColor, LightPos, ObjectColor, normal, hit);
             }
             else
             {

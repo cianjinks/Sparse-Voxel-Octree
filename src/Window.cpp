@@ -144,7 +144,7 @@ void Window::Setup()
     ImGui_ImplOpenGL3_Init("#version 410");
 }
 
-void Window::DrawUI()
+void Window::DrawUI(Octree *octree)
 {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -153,6 +153,20 @@ void Window::DrawUI()
     // ImGui::ShowDemoWindow();
     // ImGui::Begin("Test");
     // ImGui::End();
+
+    ImGui::Begin("Options");
+    ImGui::SliderFloat3("Camera Direction", glm::value_ptr(octree->CameraDir), -1.0f, 1.0f);
+    ImGui::SliderFloat3("Camera Position", glm::value_ptr(octree->CameraPos), -5.0f, 5.0f);
+    ImGui::SliderFloat("Camera Rotation", &octree->Rotation, 0.0f, 360.0f);
+    ImGui::SliderFloat3("Octree Position", glm::value_ptr(octree->OctreeLoc), -5.0f, 5.0f);
+    ImGui::SliderFloat3("Octree Color", glm::value_ptr(octree->ObjectColor), 0.0f, 1.0f);
+    ImGui::SliderFloat3("Light Position", glm::value_ptr(octree->LightPos), -5.0f, 5.0f);
+    ImGui::SliderFloat3("Light Color", glm::value_ptr(octree->LightColor), 0.0f, 1.0f);
+    if (ImGui::Button("Refresh Octree"))
+    {
+        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+    }
+    ImGui::End();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -167,12 +181,13 @@ void Window::Draw(Octree *octree)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+        // octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        DrawUI();
+        DrawUI(octree);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(_window);

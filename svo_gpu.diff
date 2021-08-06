@@ -1,0 +1,572 @@
+diff --git a/src/Application.cpp b/src/Application.cpp
+index b4c5cf5..613c238 100644
+--- a/src/Application.cpp
++++ b/src/Application.cpp
+@@ -11,7 +11,7 @@ Application::Application(uint32_t width, uint32_t height, uint32_t vwidth, uint3
+ void Application::Run()
+ {
+     std::cout << "Running App..." << std::endl;
+-    window.Setup();
++    window.Setup(&octree);
+     window.Draw(&octree);
+     window.Exit();
+ }
+\ No newline at end of file
+diff --git a/src/Octree.cpp b/src/Octree.cpp
+index 33e9354..21f50df 100644
+--- a/src/Octree.cpp
++++ b/src/Octree.cpp
+@@ -20,6 +20,9 @@ const uint32_t Octree::BitCount[] = {
+ 
+ Octree::Octree()
+ {
++    TransMatrix = glm::rotate(TransMatrix, glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
++    // TransMatrix = glm::rotate(TransMatrix, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
++
+     // _treeSize = 1 + (8 * 9);
+ 
+     // _tree = {
+@@ -109,9 +112,6 @@ bool Octree::Raymarch(glm::vec3 &ro,
+                       int &r_idx,
+                       float &r_depth)
+ {
+-    glm::vec3 rayOrigin = ro;
+-    glm::vec3 rayDirection = rd;
+-
+     const float rayScale = 0.0f;
+     const int MaxScale = 23; // Maximum scale (number of float mantissa bits).
+     struct StackEntry
+@@ -431,4 +431,14 @@ Pixel Octree::ShadeDepth(glm::vec3 &objectColor, float &depth)
+     result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
+     result.b = (uint32_t)(objectColor.b * 255.0f);
+     return result;
++}
++
++uint32_t *Octree::GetData()
++{
++    return _tree.data();
++}
++
++uint64_t Octree::GetSize()
++{
++    return _treeSize;
+ }
+\ No newline at end of file
+diff --git a/src/Octree.hpp b/src/Octree.hpp
+index 9ef0bbd..9b5c186 100644
+--- a/src/Octree.hpp
++++ b/src/Octree.hpp
+@@ -14,6 +14,20 @@
+ 
+ class Octree
+ {
++public:
++    // Camera
++    glm::vec3 Offset = glm::vec3(1.5f, 2.0f, 1.5f); // Octree Location
++    glm::vec3 CameraPosition = glm::vec3(1.5f, 1.5f, 0.0f);
++    glm::vec3 CameraDirection = glm::vec3(0.0f, 0.0f, 1.0f);
++
++    // Lighting
++    glm::vec3 LightColor = glm::vec3(1.0f);
++    glm::vec3 LightPosition = glm::vec3(1.5f, 2.0f, 1.5f);
++    glm::vec3 ObjectColor = glm::vec3(0.0f, 1.0f, 0.0f);
++
++    // Rotation
++    glm::mat4 TransMatrix = glm::mat4(1.0f);
++
+ public:
+     Octree();
+ 
+@@ -28,6 +42,9 @@ public:
+                   int &r_idx,
+                   float &r_depth);
+ 
++    uint32_t *GetData();
++    uint64_t GetSize();
++
+ private:
+     std::vector<uint32_t> _tree;
+     uint64_t _treeSize;
+diff --git a/src/Window.cpp b/src/Window.cpp
+index 3cc8295..7f84514 100644
+--- a/src/Window.cpp
++++ b/src/Window.cpp
+@@ -25,7 +25,7 @@ Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheigh
+     buffer = new Pixel[_pixels];
+ }
+ 
+-void Window::Setup()
++void Window::Setup(Octree *octree)
+ {
+     /* Initialize the library */
+     if (!glfwInit())
+@@ -60,10 +60,10 @@ void Window::Setup()
+ 
+     float vertices[] = {
+         // Pos // Texture Coord
+-        0.0f, _vheightf, 0.0f, 0.0f, 1.0f,     // Top Left
+-        0.0f, 0.0f, 0.0f, 0.0f, 0.0f,          // Bottom Left
+-        _vwidthf, 0.0f, 0.0f, 1.0f, 0.0f,      // Bottom Right
+-        _vwidthf, _vheightf, 0.0f, 1.0f, 1.0f, // Top Right
++        -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,  // Top Left
++        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // Bottom Left
++        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // Bottom Right
++        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,   // Top Right
+     };
+ 
+     unsigned int indices[] = {
+@@ -88,13 +88,13 @@ void Window::Setup()
+     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboID);
+     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+ 
+-    GLuint textureID;
+-    glGenTextures(1, &textureID);
+-    glBindTexture(GL_TEXTURE_2D, textureID);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    // GLuint textureID;
++    // glGenTextures(1, &textureID);
++    // glBindTexture(GL_TEXTURE_2D, textureID);
++    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+ 
+     GLuint programID;
+     programID = glCreateProgram();
+@@ -111,6 +111,7 @@ void Window::Setup()
+     vertexShaderObj = glCreateShader(GL_VERTEX_SHADER);
+     glShaderSource(vertexShaderObj, 1, &vertexShaderSource, nullptr);
+     glCompileShader(vertexShaderObj);
++    ErrorHandleShader(vertexShaderObj, programID);
+     glAttachShader(programID, vertexShaderObj);
+     glDeleteShader(vertexShaderObj);
+ 
+@@ -126,17 +127,38 @@ void Window::Setup()
+     fragmentShaderObj = glCreateShader(GL_FRAGMENT_SHADER);
+     glShaderSource(fragmentShaderObj, 1, &fragmentShaderSource, nullptr);
+     glCompileShader(fragmentShaderObj);
++    ErrorHandleShader(fragmentShaderObj, programID);
+     glAttachShader(programID, fragmentShaderObj);
+     glDeleteShader(fragmentShaderObj);
+ 
+     glLinkProgram(programID);
++    ErrorHandleShaderLink(programID);
+     glValidateProgram(programID);
+     glUseProgram(programID);
+ 
+-    glm::mat4 ortho = glm::ortho(0.0f, _vwidthf, 0.0f, _vheightf, -1.0f, 1.0f);
++    // glm::mat4 ortho = glm::ortho(0.0f, _vwidthf, 0.0f, _vheightf, -1.0f, 1.0f);
+ 
+-    GLint loc = glGetUniformLocation(programID, "u_ProjectionMatrix");
+-    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(ortho));
++    // GLint loc = glGetUniformLocation(programID, "u_ProjectionMatrix");
++    // glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(ortho));
++
++    GLuint textureBufferID;
++    glGenBuffers(1, &textureBufferID);
++    glBindBuffer(GL_TEXTURE_BUFFER, textureBufferID);
++    glBufferData(GL_TEXTURE_BUFFER, octree->GetSize() * sizeof(uint32_t), octree->GetData(), GL_STATIC_DRAW);
++
++    GLuint bufferID;
++    glGenTextures(1, &bufferID);
++    glBindTexture(GL_TEXTURE_BUFFER, bufferID);
++    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32UI, textureBufferID);
++
++    GLuint loc = glGetUniformLocation(programID, "uTransMatrix");
++    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(octree->TransMatrix));
++    loc = glGetUniformLocation(programID, "uCameraPosition");
++    glUniform3f(loc, octree->CameraPosition.x, octree->CameraPosition.y, octree->CameraPosition.z);
++    loc = glGetUniformLocation(programID, "uCameraDirecton");
++    glUniform3f(loc, octree->CameraDirection.x, octree->CameraDirection.y, octree->CameraDirection.z);
++    loc = glGetUniformLocation(programID, "uOctreeLoc");
++    glUniform3f(loc, octree->Offset.x, octree->Offset.y, octree->Offset.z);
+ 
+     ImGui::CreateContext();
+     ImGui::StyleColorsDark();
+@@ -167,8 +189,8 @@ void Window::Draw(Octree *octree)
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+ 
+-        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
++        // octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
++        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, _vwidth, _vheight, 0, GL_RGB, GL_UNSIGNED_BYTE, (uint8_t *)buffer);
+ 
+         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+ 
+@@ -199,4 +221,43 @@ void Window::Resize(uint32_t width, uint32_t height)
+     _width = width;
+     _height = height;
+     _ratio = float(width) / float(height);
++}
++
++void Window::ErrorHandleShader(GLuint &shader, GLuint &program)
++{
++    GLint result;
++    glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
++    if (result == GL_FALSE)
++    {
++        GLint length;
++        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
++        GLchar *log = (GLchar *)malloc(length);
++        glGetShaderInfoLog(shader, length, &length, log);
++        std::cout << "[ERROR] Failed to compile shader" << std::endl;
++        std::cout << log << std::endl;
++        free(log);
++        glDeleteShader(shader);
++        glDeleteProgram(program);
++    }
++}
++
++void Window::ErrorHandleShaderLink(GLuint &program)
++{
++    GLint isLinked = 0;
++    glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
++    if (isLinked == GL_FALSE)
++    {
++        GLint maxLength = 0;
++        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
++
++        // The maxLength includes the NULL character
++        std::string infoLog;
++        infoLog.resize(maxLength);
++        glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
++
++        // The program is useless now. So delete it.
++        glDeleteProgram(program);
++
++        std::cout << infoLog << std::endl;
++    }
+ }
+\ No newline at end of file
+diff --git a/src/Window.hpp b/src/Window.hpp
+index ac8fb97..a4e4ef4 100644
+--- a/src/Window.hpp
++++ b/src/Window.hpp
+@@ -19,7 +19,7 @@ class Window
+ public:
+     Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight, const char *title);
+ 
+-    void Setup();
++    void Setup(Octree *octree);
+     void Draw(Octree *octree);
+     void Exit();
+     void Resize(uint32_t width, uint32_t height);
+@@ -41,6 +41,9 @@ private:
+     const char *_title;
+     uint32_t _time;
+     GLFWwindow *_window;
++
++    void ErrorHandleShader(GLuint &shader, GLuint &program);
++    void ErrorHandleShaderLink(GLuint &program);
+ };
+ 
+ #endif
+\ No newline at end of file
+diff --git a/src/shaders/frag.glsl b/src/shaders/frag.glsl
+index 72bb5d5..d58b017 100644
+--- a/src/shaders/frag.glsl
++++ b/src/shaders/frag.glsl
+@@ -1,12 +1,278 @@
+ #version 430 core
+ 
+ in vec2 vTex;
++in vec3 vPos;
+ 
+-uniform sampler2D Texture;
++uniform usamplerBuffer uVoxelData;
++uniform mat4 uTransMatrix;
++uniform vec3 uCameraPosition;
++uniform vec3 uCameraDirection;
++uniform vec3 uOctreeLoc;
+ 
+ out vec4 FragColor;
+ 
++const int BitCount[] = {
++    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
++    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
++    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
++    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
++    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
++    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
++    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
++    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
++
++bool raymarch(vec3 ro, vec3 rd, out vec3 r_hit, out vec3 r_normal, out int r_idx, out float r_depth)
++{
++    const float rayScale = 0.0f;
++    const int MaxScale = 23; // Maximum scale (number of float mantissa bits).
++    struct StackEntry
++    {
++        int offset;
++        float maxT;
++    };
++    StackEntry rayStack[MaxScale + 1];
++
++    float ox = ro.x, oy = ro.y, oz = ro.z;
++    float dx = rd.x, dy = rd.y, dz = rd.z;
++
++    if (abs(dx) < 1e-4f)
++        dx = 1e-4f;
++    if (abs(dy) < 1e-4f)
++        dy = 1e-4f;
++    if (abs(dz) < 1e-4f)
++        dz = 1e-4f;
++
++    float dTx = 1.0f / -abs(dx);
++    float dTy = 1.0f / -abs(dy);
++    float dTz = 1.0f / -abs(dz);
++
++    float bTx = dTx * ox;
++    float bTy = dTy * oy;
++    float bTz = dTz * oz;
++
++    int octantMask = 7;
++    if (dx > 0.0f)
++        octantMask ^= 1, bTx = 3.0f * dTx - bTx;
++    if (dy > 0.0f)
++        octantMask ^= 2, bTy = 3.0f * dTy - bTy;
++    if (dz > 0.0f)
++        octantMask ^= 4, bTz = 3.0f * dTz - bTz;
++
++    float minT = max(2.0f * dTx - bTx, max(2.0f * dTy - bTy, 2.0f * dTz - bTz));
++    float maxT = min(dTx - bTx, min(dTy - bTy, dTz - bTz));
++    minT = max(minT, 0.0f);
++
++    int current = 0;
++    int parent = 0;
++    int idx = 0;
++    float posX = 1.0f;
++    float posY = 1.0f;
++    float posZ = 1.0f;
++    int scale = MaxScale - 1;
++
++    float scaleExp2 = 0.5f;
++
++    if (1.5f * dTx - bTx > minT)
++        idx ^= 1, posX = 1.5f;
++    if (1.5f * dTy - bTy > minT)
++        idx ^= 2, posY = 1.5f;
++    if (1.5f * dTz - bTz > minT)
++        idx ^= 4, posZ = 1.5f;
++
++    while (scale < MaxScale)
++    {
++        if (current == 0)
++        {
++            current = int(texelFetch(uVoxelData, parent).r); // _tree[parent];
++        }
++
++        float cornerTX = posX * dTx - bTx;
++        float cornerTY = posY * dTy - bTy;
++        float cornerTZ = posZ * dTz - bTz;
++        float maxTC = min(cornerTX, min(cornerTY, cornerTZ));
++
++        int childShift = idx ^ octantMask;
++        int childMasks = current << childShift;
++
++        if ((childMasks & 0x8000) != 0 && minT <= maxT)
++        {
++            if (maxTC * rayScale >= scaleExp2)
++            {
++                // Testing return value
++                // Hit
++                r_hit.x = ro.x + (minT * rd.x);
++                r_hit.y = ro.x + (minT * rd.x);
++                r_hit.z = ro.x + (minT * rd.x);
++
++                // Normal
++                vec3 t_corner;
++                t_corner.x = dTx * (ro.x + scaleExp2) - bTx;
++                t_corner.y = dTy * (ro.y + scaleExp2) - bTy;
++                t_corner.z = dTz * (ro.z + scaleExp2) - bTz;
++                int x = int(t_corner.x > t_corner.y && t_corner.x > t_corner.z);
++                int y = int(x == 0 && t_corner.y > t_corner.z);
++                int z = int(x == 0 && y == 0);
++                vec3 mask = vec3(
++                    int((octantMask & 1u) == 0u),
++                    int((octantMask & 2u) == 0u),
++                    int((octantMask & 4u) == 0u));
++                mask = (mask * 2.0f) - 1.0f;
++                r_normal = mask * vec3(x, y, z);
++                r_normal = normalize(r_normal);
++
++                // Depth
++                r_depth = minT;
++
++                // Index
++                r_idx = idx ^ octantMask ^ 7;
++                return true;
++            }
++
++            float maxTV = min(maxT, maxTC);
++            float halfvar = scaleExp2 * 0.5f;
++            float centerTX = halfvar * dTx + cornerTX;
++            float centerTY = halfvar * dTy + cornerTY;
++            float centerTZ = halfvar * dTz + cornerTZ;
++
++            if (minT <= maxTV)
++            {
++                if ((childMasks & 0x80) == 0)
++                {
++                    break;
++                }
++
++                rayStack[scale].offset = parent;
++                rayStack[scale].maxT = maxT;
++
++                int siblingCount = BitCount[childMasks & 127];
++                int childOffset = current >> 17;
++                parent += childOffset + siblingCount;
++                if ((current & 0x10000) != 0)
++                    parent += siblingCount;
++
++                idx = 0;
++                scale--;
++                scaleExp2 = halfvar;
++
++                if (centerTX > minT)
++                    idx ^= 1, posX += scaleExp2;
++                if (centerTY > minT)
++                    idx ^= 2, posY += scaleExp2;
++                if (centerTZ > minT)
++                    idx ^= 4, posZ += scaleExp2;
++
++                maxT = maxTV;
++                current = 0;
++
++                continue;
++            }
++        }
++
++        int stepMask = 0;
++        if (cornerTX <= maxTC)
++            stepMask ^= 1, posX -= scaleExp2;
++        if (cornerTY <= maxTC)
++            stepMask ^= 2, posY -= scaleExp2;
++        if (cornerTZ <= maxTC)
++            stepMask ^= 4, posZ -= scaleExp2;
++
++        minT = maxTC;
++        idx ^= stepMask;
++
++        if ((idx & stepMask) != 0)
++        {
++            int differingBits = 0;
++            if ((stepMask & 1) != 0)
++                differingBits |= floatBitsToInt(posX) ^ floatBitsToInt(posX + scaleExp2);
++            if ((stepMask & 2) != 0)
++                differingBits |= floatBitsToInt(posY) ^ floatBitsToInt(posY + scaleExp2);
++            if ((stepMask & 4) != 0)
++                differingBits |= floatBitsToInt(posZ) ^ floatBitsToInt(posZ + scaleExp2);
++            scale = (floatBitsToInt(float(differingBits)) >> 23) - 127;
++            scaleExp2 = intBitsToFloat((scale - MaxScale + 127) << 23);
++
++            parent = rayStack[scale].offset;
++            maxT = rayStack[scale].maxT;
++
++            int shX = floatBitsToInt(posX) >> scale;
++            int shY = floatBitsToInt(posY) >> scale;
++            int shZ = floatBitsToInt(posZ) >> scale;
++            posX = intBitsToFloat(shX << scale);
++            posY = intBitsToFloat(shY << scale);
++            posZ = intBitsToFloat(shZ << scale);
++            idx = (shX & 1) | ((shY & 1) << 1) | ((shZ & 1) << 2);
++
++            current = 0;
++        }
++    }
++
++    if (scale >= MaxScale)
++        return false;
++
++    // Testing return value
++    // Hit
++    r_hit.x = ro.x + (minT * rd.x);
++    r_hit.y = ro.x + (minT * rd.x);
++    r_hit.z = ro.x + (minT * rd.x);
++
++    // Normal
++    vec3 t_corner;
++    t_corner.x = dTx * (ro.x + scaleExp2) - bTx;
++    t_corner.y = dTy * (ro.y + scaleExp2) - bTy;
++    t_corner.z = dTz * (ro.z + scaleExp2) - bTz;
++    int x = int(t_corner.x > t_corner.y && t_corner.x > t_corner.z);
++    int y = int(x == 0 && t_corner.y > t_corner.z);
++    int z = int(x == 0 && y == 0);
++    vec3 mask = vec3(
++        int((octantMask & 1u) == 0u),
++        int((octantMask & 2u) == 0u),
++        int((octantMask & 4u) == 0u));
++    mask = (mask * 2.0f) - 1.0f;
++    r_normal = mask * vec3(x, y, z);
++    r_normal = normalize(r_normal);
++
++    // Depth
++    r_depth = minT;
++
++    // Index
++    r_idx = idx ^ octantMask ^ 7;
++    return true;
++}
++
+ void main()
+ {
+-    FragColor = texture(Texture, vTex);
++    vec3 cameraPos = vec3(uTransMatrix * vec4(uCameraPosition - uOctreeLoc, 1.0f)) + uOctreeLoc;
++    vec3 cameraDir = vec3(uTransMatrix * vec4(uCameraDirection, 1.0f));
++    vec3 pos = vec3(uTransMatrix * vec4(vPos, 1.0f));
++    vec3 rayOrigin = cameraPos;
++    vec3 rayDirection = cameraDir + pos;
++
++    vec3 hit;
++    vec3 normal;
++    float depth = 0;
++    int idx = 0;
++
++    if(raymarch(rayOrigin, rayDirection, hit, normal, idx, depth))
++    {
++        FragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
++    }
++    else
++    {
++        if(vPos.y > 0.0f)
++        {
++            FragColor = vec4(1.0f, 0.1f, 0.1f, 1.0f);
++        }
++        else
++        {
++            FragColor = vec4(0.1f, 0.1f, 1.0f, 1.0f);
++        }
++    }
+ }
+\ No newline at end of file
+diff --git a/src/shaders/vert.glsl b/src/shaders/vert.glsl
+index f1df18c..2f3dede 100644
+--- a/src/shaders/vert.glsl
++++ b/src/shaders/vert.glsl
+@@ -6,9 +6,11 @@ layout (location = 1) in vec2 aTex;
+ uniform mat4 u_ProjectionMatrix;
+ 
+ out vec2 vTex;
++out vec3 vPos;
+ 
+ void main()
+ {
+-    gl_Position = u_ProjectionMatrix * vec4(aPos, 1.0);
++    gl_Position = vec4(aPos, 1.0);
+     vTex = aTex;
++    vPos = aPos;
+ }
+\ No newline at end of file
