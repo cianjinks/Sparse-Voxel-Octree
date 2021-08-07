@@ -11,11 +11,6 @@
 #include <vector>
 #include <time.h>
 
-static const Pixel colors[] = {Pixel{0, 0, 0}, Pixel{30, 30, 30},
-                               Pixel{60, 60, 60}, Pixel{90, 90, 90},
-                               Pixel{120, 120, 120}, Pixel{150, 150, 150},
-                               Pixel{180, 180, 180}, Pixel{210, 210, 210}};
-
 Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight, const char *title)
     : _width(width), _height(height), _title(title), _vwidth(vwidth), _vheight(vheight), _vwidthf(float(vwidth)), _vheightf(float(vheight))
 {
@@ -23,6 +18,9 @@ Window::Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheigh
     _vratio = float(vwidth) / float(vheight);
     _pixels = _vwidth * _vheight;
     buffer = new Pixel[_pixels];
+
+    depthBuffer = new float[_pixels];
+    std::fill_n(depthBuffer, _pixels, FLT_MAX);
 }
 
 void Window::Setup()
@@ -161,11 +159,80 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderFloat3("Octree Position", glm::value_ptr(octree->OctreeLoc), -5.0f, 5.0f);
     ImGui::SliderFloat3("Octree Color", glm::value_ptr(octree->ObjectColor), 0.0f, 1.0f);
     ImGui::SliderFloat3("Light Position", glm::value_ptr(octree->LightPos), -5.0f, 5.0f);
+    ImGui::SliderFloat("Light Size", &octree->LightSize, 0.0f, 2.0f);
     ImGui::SliderFloat3("Light Color", glm::value_ptr(octree->LightColor), 0.0f, 1.0f);
-    if (ImGui::Button("Refresh Octree"))
+    if (ImGui::Button("Refresh"))
     {
-        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, (float)glfwGetTime());
+        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
     }
+
+    if (ImGui::Button("Depth"))
+    {
+        octree->ShadingMode = Shade::DEPTH;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Depth Hit"))
+    {
+        octree->ShadingMode = Shade::DEPTH_HIT;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Diffuse"))
+    {
+        octree->ShadingMode = Shade::DIFFUSE;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Normal"))
+    {
+        octree->ShadingMode = Shade::NORMAL;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Index"))
+    {
+        octree->ShadingMode = Shade::INDEX;
+    }
+
+    if (ImGui::Button("Perspective"))
+    {
+        octree->ProjectionMode = Projection::PERSPECTIVE;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Orthographic"))
+    {
+        octree->ProjectionMode = Projection::ORTHOGRAPHIC;
+    }
+
+#if 0
+    std::string preview = "Depth";
+    if (ImGui::BeginCombo("Shading Mode", preview.c_str()))
+    {
+        if (ImGui::Selectable("Depth"))
+        {
+            octree->ShadingMode = Shade::DEPTH;
+            preview = "Depth";
+        }
+        if (ImGui::Selectable("Depth Hit"))
+        {
+            octree->ShadingMode = Shade::DEPTH_HIT;
+            preview = "Depth Hit";
+        }
+        if (ImGui::Selectable("Diffuse"))
+        {
+            octree->ShadingMode = Shade::DIFFUSE;
+            preview = "Diffuse";
+        }
+        if (ImGui::Selectable("Normal"))
+        {
+            octree->ShadingMode = Shade::NORMAL;
+            preview = "Normal";
+        }
+        if (ImGui::Selectable("Index"))
+        {
+            octree->ShadingMode = Shade::INDEX;
+            preview = "Index";
+        }
+        ImGui::EndCombo();
+    }
+#endif
     ImGui::End();
 
     ImGui::Render();
@@ -206,6 +273,7 @@ void Window::Exit()
     glfwTerminate();
 
     delete[] buffer;
+    delete[] depthBuffer;
 }
 
 void Window::Resize(uint32_t width, uint32_t height)

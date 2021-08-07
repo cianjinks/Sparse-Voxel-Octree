@@ -10,6 +10,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 
 #include <memory>
+#include <algorithm>
 
 #include "Util.hpp"
 #include "Octree.hpp"
@@ -26,6 +27,7 @@ public:
 
 public:
     Pixel *buffer;
+    float *depthBuffer;
 
 private:
     void DrawUI(Octree *octree);
