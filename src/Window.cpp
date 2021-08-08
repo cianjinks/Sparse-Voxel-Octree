@@ -153,6 +153,7 @@ void Window::DrawUI(Octree *octree)
     // ImGui::End();
 
     ImGui::Begin("Options");
+
     ImGui::SliderFloat3("Camera Direction", glm::value_ptr(octree->CameraDir), -1.0f, 1.0f);
     ImGui::SliderFloat3("Camera Position", glm::value_ptr(octree->CameraPos), -5.0f, 5.0f);
     ImGui::SliderFloat("Camera Rotation", &octree->Rotation, 0.0f, 360.0f);
@@ -161,6 +162,7 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderFloat3("Light Position", glm::value_ptr(octree->LightPos), -5.0f, 5.0f);
     ImGui::SliderFloat("Light Size", &octree->LightSize, 0.0f, 2.0f);
     ImGui::SliderFloat3("Light Color", glm::value_ptr(octree->LightColor), 0.0f, 1.0f);
+
     if (ImGui::Button("Refresh"))
     {
         octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
@@ -201,38 +203,6 @@ void Window::DrawUI(Octree *octree)
         octree->ProjectionMode = Projection::ORTHOGRAPHIC;
     }
 
-#if 0
-    std::string preview = "Depth";
-    if (ImGui::BeginCombo("Shading Mode", preview.c_str()))
-    {
-        if (ImGui::Selectable("Depth"))
-        {
-            octree->ShadingMode = Shade::DEPTH;
-            preview = "Depth";
-        }
-        if (ImGui::Selectable("Depth Hit"))
-        {
-            octree->ShadingMode = Shade::DEPTH_HIT;
-            preview = "Depth Hit";
-        }
-        if (ImGui::Selectable("Diffuse"))
-        {
-            octree->ShadingMode = Shade::DIFFUSE;
-            preview = "Diffuse";
-        }
-        if (ImGui::Selectable("Normal"))
-        {
-            octree->ShadingMode = Shade::NORMAL;
-            preview = "Normal";
-        }
-        if (ImGui::Selectable("Index"))
-        {
-            octree->ShadingMode = Shade::INDEX;
-            preview = "Index";
-        }
-        ImGui::EndCombo();
-    }
-#endif
     ImGui::End();
 
     ImGui::Render();

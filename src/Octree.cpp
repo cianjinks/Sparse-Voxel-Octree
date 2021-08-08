@@ -328,12 +328,12 @@ bool Octree::Raymarch(glm::vec3 &ro,
 
     // Testing return value
     // Hit
-    // r_hit.x = ro.x + (minT * rd.x);
-    // r_hit.y = ro.x + (minT * rd.x);
-    // r_hit.z = ro.x + (minT * rd.x);
-    r_hit.x = std::min(std::max(ro.x + minT * rd.x, posX + 1e-4f), posX + scaleExp2 - 1e-4f);
-    r_hit.y = std::min(std::max(ro.y + minT * rd.y, posY + 1e-4f), posY + scaleExp2 - 1e-4f);
-    r_hit.z = std::min(std::max(ro.z + minT * rd.z, posZ + 1e-4f), posZ + scaleExp2 - 1e-4f);
+    r_hit.x = ro.x + (minT * rd.x);
+    r_hit.y = ro.y + (minT * rd.y);
+    r_hit.z = ro.z + (minT * rd.z);
+    // r_hit.x = std::min(std::max(ro.x + (minT * rd.x), posX + 1e-4f), posX + scaleExp2 - 1e-4f);
+    // r_hit.y = std::min(std::max(ro.y + (minT * rd.y), posY + 1e-4f), posY + scaleExp2 - 1e-4f);
+    // r_hit.z = std::min(std::max(ro.z + (minT * rd.z), posZ + 1e-4f), posZ + scaleExp2 - 1e-4f);
 
     // Normal
     glm::vec3 t_corner;
@@ -404,19 +404,19 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
             pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
 
             // Ray
-            if (ProjectionMode == Projection::ORTHOGRAPHIC)
-            {
-                // Orthographic:
-                rayOrigin = cameraPos + pos;
-                octreeRayOrigin = cameraPos + pos - OctreeLoc;
-                rayDirection = cameraDir;
-            }
-            else if (ProjectionMode == Projection::PERSPECTIVE)
+            if (ProjectionMode == Projection::PERSPECTIVE)
             {
                 // Perspective:
                 rayOrigin = cameraPos;
                 octreeRayOrigin = cameraPos - OctreeLoc;
                 rayDirection = cameraDir + pos;
+            }
+            else if (ProjectionMode == Projection::ORTHOGRAPHIC)
+            {
+                // Orthographic:
+                rayOrigin = cameraPos + pos;
+                octreeRayOrigin = cameraPos + pos - OctreeLoc;
+                rayDirection = cameraDir;
             }
 
             index = x + (y * vwidth);
@@ -494,9 +494,10 @@ Pixel Octree::ShadeDepth(glm::vec3 &objectColor, float &depth)
     return result;
 }
 
-Pixel Octree::ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 hit)
+Pixel Octree::ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit)
 {
     float depth = glm::distance(cameraPos, hit);
+
     Pixel result;
     result.r = (uint32_t)(objectColor.r * 255.0f);
     result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
