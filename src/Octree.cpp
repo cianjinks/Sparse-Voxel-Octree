@@ -57,10 +57,10 @@ Octree::Octree()
     //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
     // };
 
-    Generate();
+    // Generate();
 
-    // _treeSize = 1;
-    // _tree = {0x00001F00};
+    _treeSize = 1;
+    _tree = {0x00001F00};
 }
 
 void Octree::Generate()
@@ -111,15 +111,15 @@ void Octree::Generate()
     _treeSize = _tree.size();
 }
 
-bool Octree::Raymarch(glm::vec3 &ro,
-                      glm::vec3 &rd,
+bool Octree::Raymarch(glm::vec3 &rayOrigin,
+                      glm::vec3 &rayDirection,
                       glm::vec3 &r_hit,
                       glm::vec3 &r_normal,
-                      int &r_idx,
-                      float &r_depth)
+                      int *r_idx,
+                      float *r_depth)
 {
-    glm::vec3 rayOrigin = ro;
-    glm::vec3 rayDirection = rd;
+    glm::vec3 ro = rayOrigin - OctreeLoc;
+    glm::vec3 rd = rayDirection;
 
     const float rayScale = 0.0f;
     const int MaxScale = 23; // Maximum scale (number of float mantissa bits).
@@ -200,15 +200,15 @@ bool Octree::Raymarch(glm::vec3 &ro,
         {
             if (maxTC * rayScale >= scaleExp2)
             {
-#if 0
                 // Testing return value
                 // Hit
-                // r_hit.x = ro.x + (minT * rd.x);
-                // r_hit.y = ro.x + (minT * rd.x);
-                // r_hit.z = ro.x + (minT * rd.x);
-                r_hit.x = std::min(std::max(ro.x + minT * rd.x, posX + 1e-4f), posX + scaleExp2 - 1e-4f);
-                r_hit.y = std::min(std::max(ro.y + minT * rd.y, posY + 1e-4f), posY + scaleExp2 - 1e-4f);
-                r_hit.z = std::min(std::max(ro.z + minT * rd.z, posZ + 1e-4f), posZ + scaleExp2 - 1e-4f);
+                r_hit.x = ro.x + (minT * rd.x);
+                r_hit.y = ro.y + (minT * rd.y);
+                r_hit.z = ro.z + (minT * rd.z);
+                // r_hit.x = std::min(std::max(ro.x + (minT * rd.x), posX + 1e-4f), posX + scaleExp2 - 1e-4f);
+                // r_hit.y = std::min(std::max(ro.y + (minT * rd.y), posY + 1e-4f), posY + scaleExp2 - 1e-4f);
+                // r_hit.z = std::min(std::max(ro.z + (minT * rd.z), posZ + 1e-4f), posZ + scaleExp2 - 1e-4f);
+                r_hit += OctreeLoc;
 
                 // Normal
                 glm::vec3 t_corner;
@@ -234,15 +234,22 @@ bool Octree::Raymarch(glm::vec3 &ro,
                 if ((octantMask & 4u) == 0u)
                     r_normal.z = -r_normal.z;
                 // r_normal = glm::normalize(r_normal);
+                r_normal = -r_normal;
+                r_hit += (1e-4f * r_normal);
 
                 // Depth
-                r_depth = minT;
+                if (r_depth)
+                {
+                    *r_depth = minT;
+                }
 
                 // Index
-                r_idx = idx ^ octantMask ^ 7;
+                if (r_idx)
+                {
+                    *r_idx = idx ^ octantMask ^ 7;
+                }
+
                 return true;
-#endif
-                break;
             }
 
             float maxTV = std::min(maxT, maxTC);
@@ -334,6 +341,7 @@ bool Octree::Raymarch(glm::vec3 &ro,
     // r_hit.x = std::min(std::max(ro.x + (minT * rd.x), posX + 1e-4f), posX + scaleExp2 - 1e-4f);
     // r_hit.y = std::min(std::max(ro.y + (minT * rd.y), posY + 1e-4f), posY + scaleExp2 - 1e-4f);
     // r_hit.z = std::min(std::max(ro.z + (minT * rd.z), posZ + 1e-4f), posZ + scaleExp2 - 1e-4f);
+    r_hit += OctreeLoc;
 
     // Normal
     glm::vec3 t_corner;
@@ -359,12 +367,21 @@ bool Octree::Raymarch(glm::vec3 &ro,
     if ((octantMask & 4u) == 0u)
         r_normal.z = -r_normal.z;
     // r_normal = glm::normalize(r_normal);
+    r_normal = -r_normal;
+    r_hit += (1e-4f * r_normal);
 
     // Depth
-    r_depth = minT;
+    if (r_depth)
+    {
+        *r_depth = minT;
+    }
 
     // Index
-    r_idx = idx ^ octantMask ^ 7;
+    if (r_idx)
+    {
+        *r_idx = idx ^ octantMask ^ 7;
+    }
+
     return true;
 }
 
@@ -384,7 +401,6 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
 
     float rx, ry;
     glm::vec3 pos;
-    glm::vec3 octreeRayOrigin;
     glm::vec3 rayOrigin;
     glm::vec3 rayDirection;
 
@@ -408,14 +424,12 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
             {
                 // Perspective:
                 rayOrigin = cameraPos;
-                octreeRayOrigin = cameraPos - OctreeLoc;
                 rayDirection = cameraDir + pos;
             }
             else if (ProjectionMode == Projection::ORTHOGRAPHIC)
             {
                 // Orthographic:
                 rayOrigin = cameraPos + pos;
-                octreeRayOrigin = cameraPos + pos - OctreeLoc;
                 rayDirection = cameraDir;
             }
 
@@ -423,24 +437,15 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
 
             if (ShadingMode == Shade::TRACE)
             {
-                if (Raymarch(octreeRayOrigin, rayDirection, hit, normal, idx, depth))
-                {
-                    buffer[index] = Pixel{0, 255, 0};
-                }
-                else if (rayAABB(FloorCorner0, FloorCorner1, rayOrigin, rayDirection))
-                {
-                    buffer[index] = Pixel{100, 100, 100};
-                }
-                else
-                {
-                    buffer[index] = Pixel{25, 25, 25};
-                }
+                glm::vec3 result = ShadePathTrace(rayOrigin, rayDirection, hit, normal, MaxDepth);
+                buffer[index].r = (uint32_t)(result.r * 255.0f);
+                buffer[index].g = (uint32_t)(result.g * 255.0f);
+                buffer[index].b = (uint32_t)(result.b * 255.0f);
             }
             else
             {
-                if (Raymarch(octreeRayOrigin, rayDirection, hit, normal, idx, depth))
+                if (Raymarch(rayOrigin, rayDirection, hit, normal, &idx, &depth))
                 {
-                    hit += OctreeLoc;
                     depthBuffer[index] = depth;
                     switch (ShadingMode)
                     {
@@ -463,7 +468,7 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
                         buffer[index] = Pixel{0, 0, 255};
                     }
                 }
-                else if (rayAABB(p0, p1, rayOrigin, rayDirection))
+                else if (rayAABB(p0, p1, rayOrigin, rayDirection, hit, normal))
                 {
                     buffer[index].r = (uint32_t)(LightColor.r * 255.0f);
                     buffer[index].g = (uint32_t)(LightColor.g * 255.0f);
@@ -535,7 +540,42 @@ Pixel Octree::ShadeNormal(glm::vec3 &normal)
     return result;
 }
 
-bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd)
+glm::vec3 Octree::ShadePathTrace(glm::vec3 ro, glm::vec3 rd, glm::vec3 hit, glm::vec3 normal, int depth)
+{
+    if (depth <= 0)
+    {
+        return glm::vec3(0.0f, 0.0f, 0.0f);
+    }
+
+    bool intersection = false;
+    if (Raymarch(ro, rd, hit, normal, nullptr, nullptr))
+    {
+        intersection = true;
+    }
+    // else if (rayAABB(FloorCorner0, FloorCorner1, ro, rd, hit, normal))
+    // {
+    //     intersection = true;
+    // }
+    // else if (rayPlane(PlaneNormal, PlaneDistance, ro, rd, hit))
+    // {
+    //     normal = -PlaneNormal;
+    //     intersection = true;
+    //     return glm::vec3(0.0f, 0.0f, 1.0f);
+    // }
+
+    if (intersection)
+    {
+        glm::vec3 bounceTarget = hit + random_in_hemisphere(normal);
+        return 0.5f * ShadePathTrace(hit, bounceTarget - hit, hit, normal, depth - 1);
+    }
+
+    glm::vec3 nd = glm::normalize(rd);
+    float t = 0.5f * (nd.y + 1.0f);
+    return (1.0f - t) * glm::vec3(1.0f, 1.0f, 1.0f) + t * glm::vec3(0.5f, 0.7f, 1.0f);
+    // return glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit, glm::vec3 &normal)
 {
     glm::vec3 invRd = 1.0f / rd;
     glm::vec3 t0 = (p0 - ro) * invRd;
@@ -543,18 +583,27 @@ bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd)
     glm::vec3 tmin = glm::min(t0, t1);
     glm::vec3 tmax = glm::max(t0, t1);
 
-    return std::max(std::max(tmin.x, tmin.y), tmin.z) <= std::min(std::min(tmax.x, tmax.y), tmax.z);
+    float ftmin = std::max(std::max(tmin.x, tmin.y), tmin.z);
+    float ftmax = std::min(std::min(tmax.x, tmax.y), tmax.z);
+
+    normal = glm::vec3(0.0f, 0.0f, 1.0f);
+    hit = ro + (ftmin * rd);
+
+    return ftmin <= ftmax;
 }
 
-bool Octree::rayPlane(const glm::vec3 &n, const glm::vec3 &pos, const glm::vec3 &ro, const glm::vec3 &rd, float &t)
+bool Octree::rayPlane(glm::vec3 &n, glm::vec3 &dist, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit)
 {
     float denom = glm::dot(n, rd);
     if (denom > 1e-6)
     {
-        glm::vec3 v = pos - ro;
-        t = glm::dot(v, n) / denom;
-        return (t >= 0);
+        glm::vec3 v = dist - ro;
+        float t = glm::dot(v, n) / denom;
+        if (t >= 0)
+        {
+            hit = ro + (t * rd);
+            return true;
+        }
     }
-
     return false;
 }
