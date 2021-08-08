@@ -420,40 +420,61 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
             }
 
             index = x + (y * vwidth);
-            if (Raymarch(octreeRayOrigin, rayDirection, hit, normal, idx, depth))
+
+            if (ShadingMode == Shade::TRACE)
             {
-                hit += OctreeLoc;
-                depthBuffer[index] = depth;
-                switch (ShadingMode)
+                if (Raymarch(octreeRayOrigin, rayDirection, hit, normal, idx, depth))
                 {
-                case Shade::DEPTH:
-                    buffer[index] = ShadeDepth(ObjectColor, depth);
-                    break;
-                case Shade::DEPTH_HIT:
-                    buffer[index] = ShadeDepthFromHit(ObjectColor, cameraPos, hit);
-                    break;
-                case Shade::DIFFUSE:
-                    buffer[index] = ShadeDiffuse(cameraPos, LightColor, LightPos, ObjectColor, normal, hit);
-                    break;
-                case Shade::NORMAL:
-                    buffer[index] = ShadeNormal(normal);
-                    break;
-                case Shade::INDEX:
-                    buffer[index] = colors[idx];
-                    break;
+                    buffer[index] = Pixel{0, 255, 0};
                 }
-            }
-            else if (slabs(p0, p1, rayOrigin, rayDirection))
-            {
-                buffer[index].r = (uint32_t)(LightColor.r * 255.0f);
-                buffer[index].g = (uint32_t)(LightColor.g * 255.0f);
-                buffer[index].b = (uint32_t)(LightColor.b * 255.0f);
+                else if (rayAABB(FloorCorner0, FloorCorner1, rayOrigin, rayDirection))
+                {
+                    buffer[index] = Pixel{100, 100, 100};
+                }
+                else
+                {
+                    buffer[index] = Pixel{25, 25, 25};
+                }
             }
             else
             {
-                buffer[index].r = 25;
-                buffer[index].g = 25;
-                buffer[index].b = 25;
+                if (Raymarch(octreeRayOrigin, rayDirection, hit, normal, idx, depth))
+                {
+                    hit += OctreeLoc;
+                    depthBuffer[index] = depth;
+                    switch (ShadingMode)
+                    {
+                    case Shade::DEPTH:
+                        buffer[index] = ShadeDepth(ObjectColor, depth);
+                        break;
+                    case Shade::DEPTH_HIT:
+                        buffer[index] = ShadeDepthFromHit(ObjectColor, cameraPos, hit);
+                        break;
+                    case Shade::DIFFUSE:
+                        buffer[index] = ShadeDiffuse(cameraPos, LightColor, LightPos, ObjectColor, normal, hit);
+                        break;
+                    case Shade::NORMAL:
+                        buffer[index] = ShadeNormal(normal);
+                        break;
+                    case Shade::INDEX:
+                        buffer[index] = colors[idx];
+                        break;
+                    default:
+                        buffer[index] = Pixel{0, 0, 255};
+                    }
+                }
+                else if (rayAABB(p0, p1, rayOrigin, rayDirection))
+                {
+                    buffer[index].r = (uint32_t)(LightColor.r * 255.0f);
+                    buffer[index].g = (uint32_t)(LightColor.g * 255.0f);
+                    buffer[index].b = (uint32_t)(LightColor.b * 255.0f);
+                }
+                else
+                {
+                    buffer[index].r = 25;
+                    buffer[index].g = 25;
+                    buffer[index].b = 25;
+                }
             }
         }
     }
@@ -514,7 +535,7 @@ Pixel Octree::ShadeNormal(glm::vec3 &normal)
     return result;
 }
 
-bool Octree::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd)
+bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd)
 {
     glm::vec3 invRd = 1.0f / rd;
     glm::vec3 t0 = (p0 - ro) * invRd;
@@ -523,4 +544,17 @@ bool Octree::slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd)
     glm::vec3 tmax = glm::max(t0, t1);
 
     return std::max(std::max(tmin.x, tmin.y), tmin.z) <= std::min(std::min(tmax.x, tmax.y), tmax.z);
+}
+
+bool Octree::rayPlane(const glm::vec3 &n, const glm::vec3 &pos, const glm::vec3 &ro, const glm::vec3 &rd, float &t)
+{
+    float denom = glm::dot(n, rd);
+    if (denom > 1e-6)
+    {
+        glm::vec3 v = pos - ro;
+        t = glm::dot(v, n) / denom;
+        return (t >= 0);
+    }
+
+    return false;
 }

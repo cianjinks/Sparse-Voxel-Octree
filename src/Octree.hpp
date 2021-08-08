@@ -18,7 +18,8 @@ enum Shade
     DEPTH_HIT,
     DIFFUSE,
     NORMAL,
-    INDEX
+    INDEX,
+    TRACE
 };
 
 enum Projection
@@ -45,6 +46,10 @@ public:
     float LightSize = 0.05f;
     glm::vec3 ObjectColor = glm::vec3(0.0f, 1.0f, 0.0f);
 
+    // Floor
+    glm::vec3 FloorCorner0 = glm::vec3(1.5f, 1.5f, -0.5f);
+    glm::vec3 FloorCorner1 = glm::vec3(-1.5f, -1.5f, -1.0f);
+
     // Rotation
     float Rotation = 120.0f;
 
@@ -70,8 +75,11 @@ private:
     Pixel ShadeDepth(glm::vec3 &objectColor, float &depth);
     Pixel ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit);
     Pixel ShadeNormal(glm::vec3 &normal);
+    Pixel ShadePathTrace(glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit, glm::vec3 &normal);
 
-    bool slabs(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd);
+    bool rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd);
+    /* Assumes all vectors are normalized. `pos` is the plane position. */
+    bool rayPlane(const glm::vec3 &n, const glm::vec3 &pos, const glm::vec3 &ro, const glm::vec3 &rd, float &t);
 
     static inline float uintBitsToFloat(uint32_t i)
     {

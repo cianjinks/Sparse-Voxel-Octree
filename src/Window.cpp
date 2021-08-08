@@ -192,6 +192,11 @@ void Window::DrawUI(Octree *octree)
     {
         octree->ShadingMode = Shade::INDEX;
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Trace"))
+    {
+        octree->ShadingMode = Shade::TRACE;
+    }
 
     if (ImGui::Button("Perspective"))
     {
