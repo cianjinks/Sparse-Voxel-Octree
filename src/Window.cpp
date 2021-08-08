@@ -154,6 +154,7 @@ void Window::DrawUI(Octree *octree)
 
     ImGui::Begin("Options");
 
+    ImGui::Text("General");
     ImGui::SliderFloat3("Camera Direction", glm::value_ptr(octree->CameraDir), -1.0f, 1.0f);
     ImGui::SliderFloat3("Camera Position", glm::value_ptr(octree->CameraPos), -5.0f, 5.0f);
     ImGui::SliderFloat("Camera Rotation", &octree->Rotation, 0.0f, 360.0f);
@@ -163,11 +164,19 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderFloat("Light Size", &octree->LightSize, 0.0f, 2.0f);
     ImGui::SliderFloat3("Light Color", glm::value_ptr(octree->LightColor), 0.0f, 1.0f);
 
+    ImGui::Text("Path Tracer");
+    ImGui::SliderInt("Samples", &octree->NumSamples, 0, 250);
+    ImGui::SliderInt("Max Bounces", &octree->MaxBounces, 0, 100);
+    ImGui::SliderFloat("Reflectivity", &octree->Reflectivity, 0.0f, 1.0f);
+
     if (ImGui::Button("Refresh"))
     {
         octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
     }
 
+    ImGui::Separator();
+
+    ImGui::Text("Shading Mode");
     if (ImGui::Button("Depth"))
     {
         octree->ShadingMode = Shade::DEPTH;
@@ -198,6 +207,7 @@ void Window::DrawUI(Octree *octree)
         octree->ShadingMode = Shade::TRACE;
     }
 
+    ImGui::Text("Projection");
     if (ImGui::Button("Perspective"))
     {
         octree->ProjectionMode = Projection::PERSPECTIVE;

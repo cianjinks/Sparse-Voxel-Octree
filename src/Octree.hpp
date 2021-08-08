@@ -48,16 +48,19 @@ public:
 
     // Floor
     glm::vec3 FloorCorner0 = glm::vec3(1.5f, 1.5f, -0.5f);
-    glm::vec3 FloorCorner1 = glm::vec3(-1.5f, -1.5f, -1.0f);
+    glm::vec3 FloorCorner1 = glm::vec3(-1.5f, -1.5f, -0.5f);
     glm::vec3 PlaneNormal = glm::vec3(0.0f, 0.0f, 1.0f);
-    glm::vec3 PlaneDistance = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 PlaneDistance = glm::vec3(0.0f, 0.0f, -0.5f);
 
     // Rotation
     float Rotation = 120.0f;
 
     // Path Tracing
-    int MaxDepth = 50;
+    int NumSamples = 100;
+    int MaxBounces = 50;
+    float Reflectivity = 0.5f;
 
+public:
     Octree();
 
     void Generate();
@@ -76,10 +79,12 @@ private:
     uint64_t _treeSize;
     static const uint32_t BitCount[];
 
-    Pixel ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos);
-    Pixel ShadeDepth(glm::vec3 &objectColor, float &depth);
-    Pixel ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit);
-    Pixel ShadeNormal(glm::vec3 &normal);
+    void WriteColor(Pixel &pixel, glm::vec3 &color);
+
+    glm::vec3 ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos);
+    glm::vec3 ShadeDepth(glm::vec3 &objectColor, float &depth);
+    glm::vec3 ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit);
+    glm::vec3 ShadeNormal(glm::vec3 &normal);
     glm::vec3 ShadePathTrace(glm::vec3 ro, glm::vec3 rd, glm::vec3 hit, glm::vec3 normal, int depth);
 
     bool rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit, glm::vec3 &normal);

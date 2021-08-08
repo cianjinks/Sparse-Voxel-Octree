@@ -18,10 +18,14 @@ const uint32_t Octree::BitCount[] = {
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
 
-static const Pixel colors[] = {Pixel{0, 0, 0}, Pixel{30, 30, 30},
-                               Pixel{60, 60, 60}, Pixel{90, 90, 90},
-                               Pixel{120, 120, 120}, Pixel{150, 150, 150},
-                               Pixel{180, 180, 180}, Pixel{210, 210, 210}};
+static const glm::vec3 colors[] = {glm::vec3{0.0f, 0.0f, 0.0f},
+                                   glm::vec3{30.0f / 255.0f, 30.0f / 255.0f, 30.0f / 255.0f},
+                                   glm::vec3{60.0f / 255.0f, 60.0f / 255.0f, 60.0f / 255.0f},
+                                   glm::vec3{90.0f / 255.0f, 90.0f / 255.0f, 90.0f / 255.0f},
+                                   glm::vec3{120.0f / 255.0f, 120.0f / 255.0f, 120.0f / 255.0f},
+                                   glm::vec3{150.0f / 255.0f, 150.0f / 255.0f, 150.0f / 255.0f},
+                                   glm::vec3{180.0f / 255.0f, 180.0f / 255.0f, 180.0f / 255.0f},
+                                   glm::vec3{210.0f / 255.0f, 210.0f / 255.0f, 210.0f / 255.0f}};
 
 Octree::Octree()
 {
@@ -57,10 +61,10 @@ Octree::Octree()
     //     0x00008200, 0x00008200, 0x00008200, 0x00008200,
     // };
 
-    // Generate();
+    Generate();
 
-    _treeSize = 1;
-    _tree = {0x00001F00};
+    // _treeSize = 1;
+    // _tree = {0x00001F00};
 }
 
 void Octree::Generate()
@@ -437,42 +441,43 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
 
             if (ShadingMode == Shade::TRACE)
             {
-                glm::vec3 result = ShadePathTrace(rayOrigin, rayDirection, hit, normal, MaxDepth);
-                buffer[index].r = (uint32_t)(result.r * 255.0f);
-                buffer[index].g = (uint32_t)(result.g * 255.0f);
-                buffer[index].b = (uint32_t)(result.b * 255.0f);
+                glm::vec3 color = glm::vec3(0.0f);
+                for (int s = 0; s < NumSamples; s++)
+                {
+                    color += ShadePathTrace(rayOrigin, rayDirection, hit, normal, MaxBounces);
+                }
+                color *= (1.0f / NumSamples);
+                WriteColor(buffer[index], color);
             }
             else
             {
                 if (Raymarch(rayOrigin, rayDirection, hit, normal, &idx, &depth))
                 {
                     depthBuffer[index] = depth;
+                    glm::vec3 color = glm::vec3(0.0f);
                     switch (ShadingMode)
                     {
                     case Shade::DEPTH:
-                        buffer[index] = ShadeDepth(ObjectColor, depth);
+                        color = ShadeDepth(ObjectColor, depth);
                         break;
                     case Shade::DEPTH_HIT:
-                        buffer[index] = ShadeDepthFromHit(ObjectColor, cameraPos, hit);
+                        color = ShadeDepthFromHit(ObjectColor, cameraPos, hit);
                         break;
                     case Shade::DIFFUSE:
-                        buffer[index] = ShadeDiffuse(cameraPos, LightColor, LightPos, ObjectColor, normal, hit);
+                        color = ShadeDiffuse(cameraPos, LightColor, LightPos, ObjectColor, normal, hit);
                         break;
                     case Shade::NORMAL:
-                        buffer[index] = ShadeNormal(normal);
+                        color = ShadeNormal(normal);
                         break;
                     case Shade::INDEX:
-                        buffer[index] = colors[idx];
+                        color = colors[idx];
                         break;
-                    default:
-                        buffer[index] = Pixel{0, 0, 255};
                     }
+                    WriteColor(buffer[index], color);
                 }
                 else if (rayAABB(p0, p1, rayOrigin, rayDirection, hit, normal))
                 {
-                    buffer[index].r = (uint32_t)(LightColor.r * 255.0f);
-                    buffer[index].g = (uint32_t)(LightColor.g * 255.0f);
-                    buffer[index].b = (uint32_t)(LightColor.b * 255.0f);
+                    WriteColor(buffer[index], LightColor);
                 }
                 else
                 {
@@ -485,7 +490,14 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
     }
 }
 
-Pixel Octree::ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)
+void Octree::WriteColor(Pixel &pixel, glm::vec3 &color)
+{
+    pixel.r = (uint32_t)(color.r * 255.0f);
+    pixel.g = (uint32_t)(color.g * 255.0f);
+    pixel.b = (uint32_t)(color.b * 255.0f);
+}
+
+glm::vec3 Octree::ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)
 {
     // Ambient
     float ambientStrength = 0.1f;
@@ -501,42 +513,30 @@ Pixel Octree::ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec
     // glm::vec3 reflectDir = glm::reflect(-lightDir, normal);
     // float spec = glm::pow(std::max(glm::dot(viewDir, reflectDir), 0.0f), 32);
     // glm::vec3 specular = specularStrength * spec * lightColor;
-
-    glm::vec3 resultv = (ambient + diffuse) * objectColor;
-
-    Pixel result;
-    result.r = (uint32_t)(resultv.r * 255.0f);
-    result.g = (uint32_t)(resultv.g * 255.0f);
-    result.b = (uint32_t)(resultv.b * 255.0f);
+    glm::vec3 result = (ambient + diffuse) * objectColor;
     return result;
 }
 
-Pixel Octree::ShadeDepth(glm::vec3 &objectColor, float &depth)
+glm::vec3 Octree::ShadeDepth(glm::vec3 &objectColor, float &depth)
 {
-    Pixel result;
-    result.r = (uint32_t)(objectColor.r * 255.0f);
-    result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
-    result.b = (uint32_t)(objectColor.b * 255.0f);
+    glm::vec3 result = objectColor;
+    result.g *= (depth / 2.0f);
     return result;
 }
 
-Pixel Octree::ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit)
+glm::vec3 Octree::ShadeDepthFromHit(glm::vec3 &objectColor, glm::vec3 &cameraPos, glm::vec3 &hit)
 {
     float depth = glm::distance(cameraPos, hit);
-
-    Pixel result;
-    result.r = (uint32_t)(objectColor.r * 255.0f);
-    result.g = (uint32_t)(objectColor.g * 255.0f * (depth / 2.0f));
-    result.b = (uint32_t)(objectColor.b * 255.0f);
+    glm::vec3 result = objectColor;
+    result.g *= (depth / 2.0f);
     return result;
 }
 
-Pixel Octree::ShadeNormal(glm::vec3 &normal)
+glm::vec3 Octree::ShadeNormal(glm::vec3 &normal)
 {
-    Pixel result;
-    result.r = (normal.x != 0) ? 255 : 0;
-    result.g = (normal.y != 0) ? 255 : 0;
-    result.b = (normal.z != 0) ? 255 : 0;
+    glm::vec3 result = glm::vec3((normal.x != 0) ? 1.0f : 0.0f,
+                                 (normal.y != 0) ? 1.0f : 0.0f,
+                                 (normal.z != 0) ? 1.0f : 0.0f);
     return result;
 }
 
@@ -552,27 +552,21 @@ glm::vec3 Octree::ShadePathTrace(glm::vec3 ro, glm::vec3 rd, glm::vec3 hit, glm:
     {
         intersection = true;
     }
-    // else if (rayAABB(FloorCorner0, FloorCorner1, ro, rd, hit, normal))
-    // {
-    //     intersection = true;
-    // }
-    // else if (rayPlane(PlaneNormal, PlaneDistance, ro, rd, hit))
-    // {
-    //     normal = -PlaneNormal;
-    //     intersection = true;
-    //     return glm::vec3(0.0f, 0.0f, 1.0f);
-    // }
+    else if (rayPlane(PlaneNormal, PlaneDistance, ro, rd, hit))
+    {
+        normal = PlaneNormal;
+        intersection = true;
+    }
 
     if (intersection)
     {
         glm::vec3 bounceTarget = hit + random_in_hemisphere(normal);
-        return 0.5f * ShadePathTrace(hit, bounceTarget - hit, hit, normal, depth - 1);
+        return Reflectivity * ShadePathTrace(hit, bounceTarget - hit, hit, normal, depth - 1);
     }
 
     glm::vec3 nd = glm::normalize(rd);
     float t = 0.5f * (nd.y + 1.0f);
     return (1.0f - t) * glm::vec3(1.0f, 1.0f, 1.0f) + t * glm::vec3(0.5f, 0.7f, 1.0f);
-    // return glm::vec3(0.0f, 1.0f, 0.0f);
 }
 
 bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit, glm::vec3 &normal)
@@ -595,13 +589,19 @@ bool Octree::rayAABB(glm::vec3 &p0, glm::vec3 &p1, glm::vec3 &ro, glm::vec3 &rd,
 bool Octree::rayPlane(glm::vec3 &n, glm::vec3 &dist, glm::vec3 &ro, glm::vec3 &rd, glm::vec3 &hit)
 {
     float denom = glm::dot(n, rd);
-    if (denom > 1e-6)
+    if (std::abs(denom) > 1e-6)
     {
         glm::vec3 v = dist - ro;
         float t = glm::dot(v, n) / denom;
         if (t >= 0)
         {
             hit = ro + (t * rd);
+            hit += (1e-4f * PlaneNormal);
+            if (hit.x > FloorCorner0.x || hit.x < FloorCorner1.x ||
+                hit.y > FloorCorner0.y || hit.y < FloorCorner1.y)
+            {
+                return false;
+            }
             return true;
         }
     }
