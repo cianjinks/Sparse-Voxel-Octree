@@ -2,6 +2,7 @@
 #define _WINDOW_H
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
@@ -51,6 +52,7 @@ private:
     GLFWwindow *_window;
 
     bool _disableRefresh = false;
+    bool _completedRender = false;
 };
 
 #endif

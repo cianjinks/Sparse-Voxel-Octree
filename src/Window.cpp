@@ -166,26 +166,40 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderFloat("Reflectivity", &octree->Reflectivity, 0.0f, 1.0f);
 
     // Rendering
+    bool disabled = false;
+    if (_disableRefresh)
+    {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        disabled = true;
+    }
+
     if (ImGui::Button("Refresh"))
     {
         if (!_disableRefresh)
         {
             _disableRefresh = true;
+            _completedRender = false;
             std::thread t(&Window::DrawThreaded, this, octree);
             t.detach();
         }
     }
 
-    if (_disableRefresh)
+    if (_disableRefresh && disabled)
     {
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
         ImGui::SameLine();
-        ImGui::Text("Rendering...");
+        ImGui::Text("(%d/%d)", octree->PixelsRendered, _pixels);
     }
-    else
+
+    if (_completedRender)
     {
         ImGui::SameLine();
         ImGui::Text("Complete!");
     }
+
+    //////////////////////
 
     ImGui::Separator();
 
@@ -241,6 +255,7 @@ void Window::DrawThreaded(Octree *octree)
 {
     octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
     _disableRefresh = false;
+    _completedRender = true;
 }
 
 void Window::Draw(Octree *octree)

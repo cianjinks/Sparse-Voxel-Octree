@@ -391,6 +391,8 @@ bool Octree::Raymarch(glm::vec3 &rayOrigin,
 
 void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float vheightf, Pixel *buffer, float *depthBuffer, float time)
 {
+    PixelsRendered = 0;
+
     // Light
     glm::vec3 p0 = LightPos - LightSize;
     glm::vec3 p1 = LightPos + LightSize;
@@ -485,6 +487,7 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
                     buffer[index].b = 25;
                 }
             }
+            PixelsRendered++;
         }
     }
 }

@@ -60,6 +60,8 @@ public:
     int MaxBounces = 50;
     float Reflectivity = 0.5f;
 
+    int PixelsRendered = 0;
+
 public:
     Octree();
 
