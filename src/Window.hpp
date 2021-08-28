@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <algorithm>
+#include <thread>
 
 #include "Util.hpp"
 #include "Octree.hpp"
@@ -31,6 +32,7 @@ public:
 
 private:
     void DrawUI(Octree *octree);
+    void DrawThreaded(Octree *octree);
 
 private:
     uint32_t _width,
@@ -43,6 +45,8 @@ private:
     const char *_title;
     uint32_t _time;
     GLFWwindow *_window;
+
+    bool _disableRefresh = false;
 };
 
 #endif

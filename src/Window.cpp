@@ -169,9 +169,26 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderInt("Max Bounces", &octree->MaxBounces, 0, 100);
     ImGui::SliderFloat("Reflectivity", &octree->Reflectivity, 0.0f, 1.0f);
 
+    // Rendering
     if (ImGui::Button("Refresh"))
     {
-        octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
+        if (!_disableRefresh)
+        {
+            _disableRefresh = true;
+            std::thread t(&Window::DrawThreaded, this, octree);
+            t.detach();
+        }
+    }
+
+    if (_disableRefresh)
+    {
+        ImGui::SameLine();
+        ImGui::Text("Rendering...");
+    }
+    else
+    {
+        ImGui::SameLine();
+        ImGui::Text("Complete!");
     }
 
     ImGui::Separator();
@@ -222,6 +239,12 @@ void Window::DrawUI(Octree *octree)
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void Window::DrawThreaded(Octree *octree)
+{
+    octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
+    _disableRefresh = false;
 }
 
 void Window::Draw(Octree *octree)

@@ -398,7 +398,6 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
     // Rotation
     glm::mat4 trans = glm::mat4(1.0f);
     trans = glm::rotate(trans, glm::radians(Rotation), glm::vec3(0.0f, 0.0f, 1.0f));
-    // trans = glm::rotate(trans, (float)time, glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::vec3 cameraPos = glm::vec3(trans * glm::vec4(CameraPos, 1.0f));
     glm::vec3 cameraDir = glm::vec3(trans * glm::vec4(CameraDir, 1.0f));
