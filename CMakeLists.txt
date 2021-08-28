@@ -32,6 +32,8 @@ set(imgui-source ${imgui-directory}/imconfig.h
 	${imgui-directory}/imstb_truetype.h
     ${imgui-directory}/imgui_tables.cpp
 	${imgui-directory}/imgui_demo.cpp
+	${imgui-directory}/backends/imgui_impl_glfw.cpp
+	${imgui-directory}/backends/imgui_impl_opengl3.cpp
 )
 
 add_executable( LinuxOpenGL ${source} ${imgui-source})
