@@ -27,6 +27,7 @@ public:
     Window(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight, const char *title);
 
     void Setup();
+    void Clear();
     void Draw(Octree *octree);
     void Exit();
     void Resize(uint32_t width, uint32_t height);

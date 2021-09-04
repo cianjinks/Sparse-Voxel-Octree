@@ -391,7 +391,7 @@ bool Octree::Raymarch(glm::vec3 &rayOrigin,
 
 void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float vheightf, Pixel *buffer, float *depthBuffer, float time)
 {
-    PixelsRendered = 0;
+    CompletedSamples = 0;
 
     // Light
     glm::vec3 p0 = LightPos - LightSize;
@@ -415,43 +415,74 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
     int idx = 0;
 
     uint64_t index = 0;
-    for (int y = 0; y < vheight; y++)
+
+    if (ShadingMode == Shade::TRACE)
     {
-        for (int x = 0; x < vwidth; x++)
+        for (int s = 0; s < NumSamples; s++)
         {
-            rx = ((float(x) * 2.0f) / vwidthf) - 1.0f;
-            ry = ((float(y) * 2.0f) / vheightf) - 1.0f;
-            pos = glm::vec3(rx, 0.0f, ry);
-            pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
-
-            // Ray
-            if (ProjectionMode == Projection::PERSPECTIVE)
+            for (int y = 0; y < vheight; y++)
             {
-                // Perspective:
-                rayOrigin = cameraPos;
-                rayDirection = cameraDir + pos;
-            }
-            else if (ProjectionMode == Projection::ORTHOGRAPHIC)
-            {
-                // Orthographic:
-                rayOrigin = cameraPos + pos;
-                rayDirection = cameraDir;
-            }
-
-            index = x + (y * vwidth);
-
-            if (ShadingMode == Shade::TRACE)
-            {
-                glm::vec3 color = glm::vec3(0.0f);
-                for (int s = 0; s < NumSamples; s++)
+                for (int x = 0; x < vwidth; x++)
                 {
+                    rx = ((float(x) * 2.0f) / vwidthf) - 1.0f;
+                    ry = ((float(y) * 2.0f) / vheightf) - 1.0f;
+                    pos = glm::vec3(rx, 0.0f, ry);
+                    pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
+
+                    // Ray
+                    if (ProjectionMode == Projection::PERSPECTIVE)
+                    {
+                        // Perspective:
+                        rayOrigin = cameraPos;
+                        rayDirection = cameraDir + pos;
+                    }
+                    else if (ProjectionMode == Projection::ORTHOGRAPHIC)
+                    {
+                        // Orthographic:
+                        rayOrigin = cameraPos + pos;
+                        rayDirection = cameraDir;
+                    }
+
+                    index = x + (y * vwidth);
+
+                    // Improve on each sample
+                    glm::vec3 color = ReadColor(buffer[index]);
+                    color *= s;
                     color += ShadePathTrace(rayOrigin, rayDirection, hit, normal, MaxBounces);
+                    color *= (1.0f / (s + 1));
+                    WriteColor(buffer[index], color);
                 }
-                color *= (1.0f / NumSamples);
-                WriteColor(buffer[index], color);
             }
-            else
+            CompletedSamples++;
+        }
+    }
+    else
+    {
+        for (int y = 0; y < vheight; y++)
+        {
+            for (int x = 0; x < vwidth; x++)
             {
+                rx = ((float(x) * 2.0f) / vwidthf) - 1.0f;
+                ry = ((float(y) * 2.0f) / vheightf) - 1.0f;
+                pos = glm::vec3(rx, 0.0f, ry);
+                pos = glm::vec3(trans * glm::vec4(pos, 1.0f));
+
+                // Ray
+                if (ProjectionMode == Projection::PERSPECTIVE)
+                {
+                    // Perspective:
+                    rayOrigin = cameraPos;
+                    rayDirection = cameraDir + pos;
+                }
+                else if (ProjectionMode == Projection::ORTHOGRAPHIC)
+                {
+                    // Orthographic:
+                    rayOrigin = cameraPos + pos;
+                    rayDirection = cameraDir;
+                }
+
+                index = x + (y * vwidth);
+
                 if (Raymarch(rayOrigin, rayDirection, hit, normal, &idx, &depth))
                 {
                     depthBuffer[index] = depth;
@@ -487,7 +518,6 @@ void Octree::DrawOctree(uint32_t vwidth, uint32_t vheight, float vwidthf, float 
                     buffer[index].b = 25;
                 }
             }
-            PixelsRendered++;
         }
     }
 }
@@ -497,6 +527,15 @@ void Octree::WriteColor(Pixel &pixel, glm::vec3 &color)
     pixel.r = (uint32_t)(color.r * 255.0f);
     pixel.g = (uint32_t)(color.g * 255.0f);
     pixel.b = (uint32_t)(color.b * 255.0f);
+}
+
+glm::vec3 Octree::ReadColor(Pixel &pixel)
+{
+    glm::vec3 result = glm::vec3(1.0f);
+    result.r = float(pixel.r) * (1.0f / 255.0f);
+    result.g = float(pixel.g) * (1.0f / 255.0f);
+    result.b = float(pixel.b) * (1.0f / 255.0f);
+    return result;
 }
 
 glm::vec3 Octree::ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos)

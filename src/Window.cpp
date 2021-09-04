@@ -180,6 +180,7 @@ void Window::DrawUI(Octree *octree)
         {
             _disableRefresh = true;
             _completedRender = false;
+            Clear();
             std::thread t(&Window::DrawThreaded, this, octree);
             t.detach();
         }
@@ -190,7 +191,7 @@ void Window::DrawUI(Octree *octree)
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         ImGui::SameLine();
-        ImGui::Text("(%d/%d)", octree->PixelsRendered, _pixels);
+        ImGui::Text("(%d/%d)", octree->CompletedSamples, octree->NumSamples);
     }
 
     if (_completedRender)
@@ -256,6 +257,14 @@ void Window::DrawThreaded(Octree *octree)
     octree->DrawOctree(_vwidth, _vheight, _vwidthf, _vheightf, buffer, depthBuffer, (float)glfwGetTime());
     _disableRefresh = false;
     _completedRender = true;
+}
+
+void Window::Clear()
+{
+    for (int i = 0; i < _pixels; i++)
+    {
+        buffer[i] = {0, 0, 0};
+    }
 }
 
 void Window::Draw(Octree *octree)

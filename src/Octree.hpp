@@ -57,10 +57,9 @@ public:
 
     // Path Tracing
     int NumSamples = 100;
+    int CompletedSamples = 0;
     int MaxBounces = 50;
     float Reflectivity = 0.5f;
-
-    int PixelsRendered = 0;
 
 public:
     Octree();
@@ -82,6 +81,7 @@ private:
     static const uint32_t BitCount[];
 
     void WriteColor(Pixel &pixel, glm::vec3 &color);
+    glm::vec3 ReadColor(Pixel &pixel);
 
     glm::vec3 ShadeDiffuse(glm::vec3 &cameraPos, glm::vec3 &lightColor, glm::vec3 lightPos, glm::vec3 &objectColor, glm::vec3 &normal, glm::vec3 &hitPos);
     glm::vec3 ShadeDepth(glm::vec3 &objectColor, float &depth);
