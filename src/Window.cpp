@@ -166,6 +166,13 @@ void Window::DrawUI(Octree *octree)
     ImGui::SliderFloat("Reflectivity", &octree->Reflectivity, 0.0f, 1.0f);
 
     // Rendering
+    if (ImGui::Button("Clear"))
+    {
+        Clear();
+        _disableRefresh = false;
+        _completedRender = false;
+    }
+
     bool disabled = false;
     if (_disableRefresh)
     {
@@ -174,6 +181,7 @@ void Window::DrawUI(Octree *octree)
         disabled = true;
     }
 
+    ImGui::SameLine();
     if (ImGui::Button("Refresh"))
     {
         if (!_disableRefresh)
@@ -191,7 +199,7 @@ void Window::DrawUI(Octree *octree)
         ImGui::PopItemFlag();
         ImGui::PopStyleVar();
         ImGui::SameLine();
-        ImGui::Text("(%d/%d)", octree->CompletedSamples, octree->NumSamples);
+        ImGui::Text("Sample (%d/%d)", octree->CompletedSamples, octree->NumSamples);
     }
 
     if (_completedRender)
