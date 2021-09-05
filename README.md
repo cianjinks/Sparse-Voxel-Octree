@@ -5,12 +5,12 @@ All rendering calculations are done on the CPU and written to a texture. Current
 ## Media
 
 Demonstration with 12 samples + 12 bounces
-![Path Tracing](docs/pathtrace.gif)
+![Path Tracing](doc/pathtrace.gif)
 
 Results with 50 samples + 50 bounces
-![Image One](docs/pathtrace1.png)
+![Image One](doc/pathtrace1.png)
 
-![Image Two](docs/pathtrace2.png)
+![Image Two](doc/pathtrace2.png)
 
 ## Further Work
 
